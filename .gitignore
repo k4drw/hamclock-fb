@@ -1,0 +1,20 @@
+# Build and cache directories
+*.tgz
+*.o
+*.a
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Lock files
+*.lock
+
+# Log files
+*.log 
