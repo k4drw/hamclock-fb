@@ -1,0 +1,17 @@
+name: Validate Scripts    # Name of the workflow as it appears in GitHub
+
+on:                      # Defines when the workflow runs
+  push:
+    branches: [ master ]   # Runs on every push to master branch
+  pull_request:
+    branches: [ master ]   # Runs on every PR targeting master branch
+
+jobs:
+  shellcheck:            # Defines a job called "shellcheck"
+    runs-on: ubuntu-latest    # Uses Ubuntu as the runner environment
+    steps:
+    - uses: actions/checkout@v3    # Checks out your repository code
+    - name: Run ShellCheck        # The shellcheck step
+      uses: ludeeus/action-shellcheck@master    # Uses a pre-made ShellCheck action
+      with:
+        scandir: './'      # Scans all shell scripts in the root directory

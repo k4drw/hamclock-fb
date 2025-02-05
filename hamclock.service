@@ -1,0 +1,16 @@
+[Unit]
+Wants=network-online.target
+After=network.target network-online.target
+Description=Hamclock
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/default/hamclock
+# User is set directly in ExecStart using sudo
+ExecStart=/bin/bash -c 'sudo -u $HAMCLOCK_USER /usr/local/bin/hamclock -f on'
+Restart=always
+RestartSec=3
+TimeoutStartSec=30
+
+[Install]
+WantedBy=multi-user.target
