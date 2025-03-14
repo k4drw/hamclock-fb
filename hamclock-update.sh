@@ -112,7 +112,13 @@ else
 
     # Make hamclock with detected resolution
     logger -s -t $(basename $0) "Building with resolution: $RESOLUTION"
-    make -j4 $RESOLUTION
+
+    # Determine optimal number of make jobs (number of cores minus 1, minimum 1)
+    NUM_CORES=$(nproc)
+    MAKE_JOBS=$((NUM_CORES > 1 ? NUM_CORES - 1 : 1))
+    logger -s -t $(basename $0) "Using $MAKE_JOBS make jobs on $NUM_CORES cores"
+
+    make -j$MAKE_JOBS $RESOLUTION
     make install
 
     # Remove the extracted files
