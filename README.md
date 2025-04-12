@@ -1,10 +1,11 @@
 # HamClock Framebuffer Installation
 
-This package provides an unofficial, automated method for installing HamClock in framebuffer mode. 
+This package provides an unofficial, automated method for installing HamClock in framebuffer mode.
 
 ## Important Notice
 
 This is NOT the official HamClock installation method. This is a community-created installation script that:
+
 - Runs HamClock directly on the framebuffer without X Windows
 - Provides automated updates and service management
 - Is optimized for dedicated display installations
@@ -12,9 +13,10 @@ This is NOT the official HamClock installation method. This is a community-creat
 **Note: "X Windows" (also known as X11 or X Window System) is the standard graphics system used in Linux - it is **NOT** related to Microsoft Windows. HamClock is a Linux application and cannot run natively on Microsoft Windows. For more information about X Windows, see [Wikipedia's X Window System article](https://en.wikipedia.org/wiki/X_Window_System).**
 
 For the official HamClock installation method using X Windows, please visit:
-https://www.clearskyinstitute.com/ham/HamClock/#tab-key
+[Official HamClock Installation Page](https://www.clearskyinstitute.com/ham/HamClock/#tab-key)
 
 ### Why Framebuffer?
+
 This installation method eliminates the overhead of running X Windows when you're using HamClock as a dedicated display application. If you need the full X Windows version (for example, to use HamClock alongside other applications), please use the official installation method instead.
 
 ## Prerequisites
@@ -28,41 +30,53 @@ This installation method eliminates the overhead of running X Windows when you'r
 ## Installation
 
 ### Quick Install
+
 Install directly using curl:
+
 ```bash
 curl -sSL https://github.com/k4drw/hamclock-fb/raw/refs/heads/master/install.sh | sudo bash
 ```
 
 ### From GitHub
+
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/k4drw/hamclock-fb.git
    cd hamclock-fb/install
    ```
+
 2. Make the install script executable:
+
    ```bash
    chmod +x install.sh
    ```
+
 3. Run the installation script as root:
+
    ```bash
    sudo ./install.sh
    ```
 
 ### Manual Installation
+
 If you prefer to install manually, follow these steps:
 
 1. Create the update script:
+
    ```bash
    sudo install -m 755 hamclock-update.sh /usr/local/sbin/hamclock-update
    ```
 
 2. Configure the service user:
+
    ```bash
    # Create the environment file with your username
    echo "HAMCLOCK_USER=$(whoami)" | sudo tee /etc/default/hamclock
    ```
 
 3. Install the systemd services:
+
    ```bash
    sudo install -m 644 hamclock.service /etc/systemd/system/
    sudo install -m 644 hamclock-update.service /etc/systemd/system/
@@ -70,6 +84,7 @@ If you prefer to install manually, follow these steps:
    ```
 
 4. Enable and start the services:
+
    ```bash
    sudo systemctl daemon-reload
    sudo systemctl enable hamclock.service
@@ -80,6 +95,7 @@ If you prefer to install manually, follow these steps:
 ## Configuration
 
 The update script will:
+
 - Check for HamClock updates daily between 2:00 AM and 3:00 AM
 - Automatically install system updates when available
 - Restart the system if needed after updates
@@ -93,13 +109,16 @@ The update script will:
 The installation automatically detects your framebuffer settings using `fbset -i` and configures HamClock appropriately:
 
 ### Resolution
+
 The script will select the best resolution that fits your display from these options:
+
 - 800x480 (Small display)
 - 1600x960 (Medium display)
 - 2400x1440 (Large display)
 - 3200x1920 (Huge display)
 
 ### Color Depth
+
 The color depth (16-bit or 32-bit) will be automatically configured based on your framebuffer settings.
 
 Note: If you need to override these automatic settings, you can modify the script at `/usr/local/sbin/hamclock-update` and comment out the automatic detection code.
@@ -117,12 +136,14 @@ Note: If you need to override these automatic settings, you can modify the scrip
 ## Troubleshooting
 
 Check service status:
+
    ```bash
    systemctl status hamclock.service
    systemctl status hamclock-update.timer
    ```
 
 Check logs:
+
    ```bash
    # View update script logs
    journalctl -u hamclock-update.service
@@ -135,6 +156,7 @@ Check logs:
    ```
 
 ## Notes
+
 - All times are in UTC
 - Previous versions are backed up as ESPHamClock-[version].tgz
 
@@ -149,12 +171,14 @@ This project includes a comprehensive Model Development Collaboration (MDC) rule
 - Documentation references
 
 The AI will automatically:
+
 - Adapt explanations to your technical background
 - Reference appropriate sections of HamClock's official documentation
 - Follow project-specific coding standards
 - Provide consistent troubleshooting approaches
 
 To get the most from AI assistance:
+
 1. Use Cursor IDE when working with this project
 2. Let the AI know your experience level with Linux/framebuffer systems
 3. Provide error messages or logs when troubleshooting
