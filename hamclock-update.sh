@@ -89,15 +89,15 @@ else
     FB_HEIGHT=$(echo $FB_INFO | awk '{print $3}')
     FB_DEPTH=$(echo $FB_INFO | awk '{print $6}')
 
-    # Determine closest resolution that doesn't exceed screen size
-    if [ $FB_WIDTH -le 800 ] || [ $FB_HEIGHT -le 480 ]; then
-        RESOLUTION="hamclock-fb0-800x480"
-    elif [ $FB_WIDTH -le 1600 ] || [ $FB_HEIGHT -le 960 ]; then
-        RESOLUTION="hamclock-fb0-1600x960"
-    elif [ $FB_WIDTH -le 2400 ] || [ $FB_HEIGHT -le 1440 ]; then
-        RESOLUTION="hamclock-fb0-2400x1440"
-    else
+    # Determine closest resolution that fits within screen dimensions
+    if [ $FB_WIDTH -ge 3200 ] && [ $FB_HEIGHT -ge 1920 ]; then
         RESOLUTION="hamclock-fb0-3200x1920"
+    elif [ $FB_WIDTH -ge 2400 ] && [ $FB_HEIGHT -ge 1440 ]; then
+        RESOLUTION="hamclock-fb0-2400x1440"
+    elif [ $FB_WIDTH -ge 1600 ] && [ $FB_HEIGHT -ge 960 ]; then
+        RESOLUTION="hamclock-fb0-1600x960"
+    else
+        RESOLUTION="hamclock-fb0-800x480"
     fi
 
     # Set framebuffer depth based on actual hardware
