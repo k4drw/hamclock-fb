@@ -9,6 +9,8 @@ This is NOT the official HamClock installation method. This is a community-creat
 - Provides automated updates and service management
 - Is optimized for dedicated display installations
 
+**Note: "X Windows" (also known as X11 or X Window System) is the standard graphics system used in Linux - it is **NOT** related to Microsoft Windows. HamClock is a Linux application and cannot run natively on Microsoft Windows. For more information about X Windows, see [Wikipedia's X Window System article](https://en.wikipedia.org/wiki/X_Window_System).**
+
 For the official HamClock installation method using X Windows, please visit:
 https://www.clearskyinstitute.com/ham/HamClock/#tab-key
 
