@@ -1,6 +1,19 @@
-# HamClock Installation
+# HamClock Framebuffer Installation
 
-This package installs HamClock with automatic daily updates.
+This package provides an unofficial, automated method for installing HamClock in framebuffer mode. 
+
+## Important Notice
+
+This is NOT the official HamClock installation method. This is a community-created installation script that:
+- Runs HamClock directly on the framebuffer without X Windows
+- Provides automated updates and service management
+- Is optimized for dedicated display installations
+
+For the official HamClock installation method using X Windows, please visit:
+https://www.clearskyinstitute.com/ham/HamClock/#tab-key
+
+### Why Framebuffer?
+This installation method eliminates the overhead of running X Windows when you're using HamClock as a dedicated display application. If you need the full X Windows version (for example, to use HamClock alongside other applications), please use the official installation method instead.
 
 ## Prerequisites
 
@@ -120,9 +133,31 @@ Check logs:
    ```
 
 ## Notes
-- The script modifies the MIN_WIFI_RSSI value to -90 for better WiFi connectivity
 - All times are in UTC
 - Previous versions are backed up as ESPHamClock-[version].tgz
+
+## AI Development Assistance
+
+This project includes a comprehensive Model Development Collaboration (MDC) ruleset that enables AI assistants (particularly those in Cursor IDE) to provide context-aware help with:
+
+- Resolution and framebuffer configuration
+- Installation troubleshooting
+- Service management
+- Update procedures
+- Documentation references
+
+The AI will automatically:
+- Adapt explanations to your technical background
+- Reference appropriate sections of HamClock's official documentation
+- Follow project-specific coding standards
+- Provide consistent troubleshooting approaches
+
+To get the most from AI assistance:
+1. Use Cursor IDE when working with this project
+2. Let the AI know your experience level with Linux/framebuffer systems
+3. Provide error messages or logs when troubleshooting
+
+The AI understands both the technical requirements and the project's scope as an unofficial framebuffer implementation of HamClock.
 
 ## Contributing
 

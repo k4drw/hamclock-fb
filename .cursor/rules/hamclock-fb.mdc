@@ -1,0 +1,251 @@
+---
+description: "HamClock Framebuffer Installation"
+globs: **/*
+alwaysApply: true
+---
+{
+    "hamclock-fb": {
+      "style_guide": {
+        "shell_scripts": {
+          "format": {
+            "indent_size": 4,
+            "line_continuation": "Use backslash for line continuation",
+            "comments": "Use # for comments, explain complex logic"
+          },
+          "error_handling": {
+            "required_settings": [
+              "set -e - Exit on error",
+              "set -u - Exit on undefined variable",
+              "set -o pipefail - Exit on pipe failures"
+            ],
+            "logging": "Use logger for system logging with appropriate tags"
+          }
+        },
+        "systemd_services": {
+          "unit_file_structure": {
+            "sections": [
+              "[Unit] - Dependencies and descriptions",
+              "[Service] - Execution and runtime behavior",
+              "[Install] - Installation targets"
+            ],
+            "best_practices": [
+              "Include After=network-online.target for network services",
+              "Set appropriate timeout values",
+              "Use descriptive service descriptions"
+            ]
+          }
+        }
+      },
+      "framebuffer_management": {
+        "resolution_handling": {
+          "supported_resolutions": [
+            {
+              "size": "800x480",
+              "use_case": "Small displays, RPi official 7-inch",
+              "target": "hamclock-fb0-800x480"
+            },
+            {
+              "size": "1600x960",
+              "use_case": "Medium displays",
+              "target": "hamclock-fb0-1600x960"
+            },
+            {
+              "size": "2400x1440",
+              "use_case": "Large displays",
+              "target": "hamclock-fb0-2400x1440"
+            },
+            {
+              "size": "3200x1920",
+              "use_case": "Huge displays",
+              "target": "hamclock-fb0-3200x1920"
+            }
+          ],
+          "selection_logic": {
+            "approach": "Select largest resolution that fits within actual display",
+            "considerations": [
+              "Both width and height must fit",
+              "Account for non-standard resolutions",
+              "Default to 800x480 if no larger size fits"
+            ]
+          }
+        },
+        "color_depth": {
+          "supported_modes": [
+            {
+              "depth": "16-bit",
+              "default": true,
+              "config": "Default configuration in Adafruit_RA8875.h"
+            },
+            {
+              "depth": "32-bit",
+              "detection": "Automatically detected via fbset",
+              "config": "Comment out _16BIT_FB define"
+            }
+          ]
+        }
+      },
+      "installation_patterns": {
+        "user_detection": {
+          "priority_order": [
+            "Check for common SBC users (pi, orangepi, banana)",
+            "Find first non-root user with UID >= 1000",
+            "Fallback to root if no suitable user found"
+          ]
+        },
+        "service_configuration": {
+          "environment": {
+            "file": "/etc/default/hamclock",
+            "variables": [
+              "HAMCLOCK_USER - User context for hamclock execution"
+            ]
+          }
+        }
+      },
+      "update_management": {
+        "schedule": {
+          "default_window": "0200-0300 daily",
+          "randomization": "1-hour window to prevent server load"
+        },
+        "components": [
+          "HamClock binary updates",
+          "System package updates",
+          "Service configuration updates"
+        ],
+        "restart_policies": {
+          "conditions": [
+            "After HamClock update",
+            "After system package updates",
+            "After configuration changes"
+          ]
+        }
+      },
+      "cursor_personalization": {
+        "experience_levels": {
+          "novice": {
+            "description": "New to framebuffer/embedded Linux",
+            "focus_areas": [
+              "Basic Linux commands",
+              "Service management",
+              "Display configuration"
+            ]
+          },
+          "intermediate": {
+            "description": "Familiar with Linux and basic framebuffer concepts",
+            "focus_areas": [
+              "Resolution calculations",
+              "Color depth implications",
+              "Service dependencies"
+            ]
+          },
+          "experienced": {
+            "description": "Deep Linux/embedded systems knowledge",
+            "focus_areas": [
+              "Performance optimization",
+              "Advanced framebuffer configuration",
+              "System integration"
+            ]
+          }
+        }
+      },
+      "documentation_hierarchy": {
+        "primary_sources": {
+          "hamclock_manual": {
+            "url": "https://www.clearskyinstitute.com/ham/HamClock/HamClockKey.pdf",
+            "description": "Official HamClock documentation - PDF Reference",
+            "key_sections": [
+              "Display configuration",
+              "Network requirements",
+              "Operating parameters"
+            ]
+          },
+          "online_documentation": {
+            "url": "https://www.clearskyinstitute.com/ham/HamClock/#tab-key",
+            "description": "Live online documentation - includes latest updates",
+            "key_sections": [
+              "Desktop installation instructions",
+              "Version history",
+              "FAQ and troubleshooting",
+              "User contributions"
+            ]
+          },
+          "release_notes": {
+            "url": "https://www.clearskyinstitute.com/ham/HamClock/#tab-download",
+            "description": "Official release notes and version history",
+            "importance": "Critical for tracking changes and new features"
+          }
+        },
+        "documentation_priority": [
+          "1. Check online docs for latest information",
+          "2. Reference PDF manual for detailed operations",
+          "3. Review version history for recent changes",
+          "4. Check FAQ for common issues"
+        ],
+        "troubleshooting_flow": {
+          "steps": [
+            "1. Check online documentation first (most current)",
+            "2. Verify against PDF manual",
+            "3. Check framebuffer configuration",
+            "4. Review system logs",
+            "5. Check project issues on GitHub"
+          ]
+        },
+        "version_tracking": {
+          "check_locations": [
+            "Online documentation version history",
+            "Local installation version",
+            "Latest available version from update check"
+          ]
+        }
+      },
+      "version_management": {
+        "tracking": {
+          "upstream_version": {
+            "source": "https://www.clearskyinstitute.com/ham/HamClock/#tab-download",
+            "check_frequency": "Daily during update window",
+            "key_information": [
+              "Version number",
+              "Release date",
+              "New features",
+              "Changes",
+              "Bug fixes"
+            ]
+          },
+          "version_comparison": {
+            "steps": [
+              "Check current installed version",
+              "Compare against latest upstream version",
+              "Review changes since installed version",
+              "Evaluate impact of updates"
+            ]
+          }
+        },
+        "update_decision": {
+          "considerations": [
+            "Critical bug fixes",
+            "Feature additions",
+            "System compatibility changes",
+            "Performance improvements"
+          ]
+        }
+      },
+      "project_scope": {
+        "disclaimer": {
+          "purpose": "Unofficial framebuffer-only installation method for HamClock",
+          "rationale": [
+            "Eliminates X Windows overhead for full-screen application",
+            "Optimized for dedicated display installations",
+            "Automated installation and update management"
+          ],
+          "limitations": [
+            "Not an official HamClock installation method",
+            "Focused solely on framebuffer implementation",
+            "May not support all HamClock features available in X Windows"
+          ],
+          "official_alternative": {
+            "description": "Official X Windows installation method",
+            "url": "https://www.clearskyinstitute.com/ham/HamClock/#tab-desktop"
+          }
+        }
+      }
+    }
+  }
