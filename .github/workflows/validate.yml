@@ -1,5 +1,14 @@
 name: Validate Scripts    # Name of the workflow as it appears in GitHub
 
+# Add explicit permissions block
+permissions:
+  contents: read    # Only needs read access to check the code
+
+# Prevent redundant runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:                      # Defines when the workflow runs
   push:
     branches: [ master ]   # Runs on every push to master branch
@@ -7,11 +16,39 @@ on:                      # Defines when the workflow runs
     branches: [ master ]   # Runs on every PR targeting master branch
 
 jobs:
-  shellcheck:            # Defines a job called "shellcheck"
-    runs-on: ubuntu-latest    # Uses Ubuntu as the runner environment
+  shellcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-    - uses: actions/checkout@v3    # Checks out your repository code
-    - name: Run ShellCheck        # The shellcheck step
-      uses: ludeeus/action-shellcheck@master    # Uses a pre-made ShellCheck action
+    - uses: actions/checkout@v4.2.2    # Pinned version
+    - name: Run ShellCheck
+      uses: ludeeus/action-shellcheck@2.0.0
       with:
-        scandir: './'      # Scans all shell scripts in the root directory
+        scandir: './'
+        severity: error
+        check_together: true
+        format: gcc
+
+  shfmt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v4.2.2
+    - name: Run shfmt
+      uses: luizm/action-sh-checker@v0.7.0
+      env:
+        SHFMT_OPTS: "-ci -kp -fn -sr -i 2"
+      with:
+        sh_checker_shellcheck_disable: false
+        sh_checker_shfmt_disable: false
+        sh_checker_comment: false
+  markdown:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v4.2.2
+    - name: Markdown Lint
+      uses: DavidAnson/markdownlint-cli2-action@v13.0.0
+      with:
+        globs: "**/*.md"
+        config: '.markdownlint.json'  # Explicitly point to our config file
