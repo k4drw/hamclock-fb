@@ -1,8 +1,7 @@
 #!/bin/bash
 # error handling and logging
 set -euo pipefail
-exec 1> /dev/null
-logger -s -t "$(basename "$0")"
+exec 1> >(logger -s -t "$(basename "$0")") 2>&1
 
 # Add lock file to prevent concurrent runs
 LOCKFILE="/var/run/hamclock_update.lock"
