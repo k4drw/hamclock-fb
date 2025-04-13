@@ -110,6 +110,9 @@ else
   # I prefer a lower value for WiFi signal strength
   sed -i -re 's/MIN_WIFI_RSSI (-75)/MIN_WIFI_RSSI (-90)/' HamClock.h
 
+  # Don't show the wifi setup on FB0
+  sed -i '/#if defined (_USE_FB0)/,/#endif/c\#define _WIFI_NEVER' setup.cpp
+
   # Make hamclock with detected resolution
   logger -s -t "$(basename "$0")" "Building with resolution: $RESOLUTION"
 
