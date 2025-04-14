@@ -1,7 +1,9 @@
 #!/bin/bash
 # error handling and logging
 set -euo pipefail
-exec 1> >(logger -s -t "$(basename "$0")") 2>&1
+exec 1> >(tee -a /var/log/hamclock-update.log | logger -s -t "$(basename "$0")") 2>&1
+
+logger -s -t "$(basename "$0")" "Update service started at $(date '+%Y-%m-%d %H:%M:%S')"
 
 # Add lock file to prevent concurrent runs
 LOCKFILE="/var/run/hamclock_update.lock"
@@ -46,6 +48,12 @@ if curl -Ls "${REPO_URL}/archive/refs/heads/master.tar.gz" -o "${UPDATE_DIR}/rep
       install -m 644 hamclock-update.timer /etc/systemd/system/
       systemctl daemon-reload
       logger -s -t "$(basename "$0")" "Wrapper scripts updated"
+
+      # Enable services
+      systemctl enable hamclock.service
+      systemctl enable hamclock-update.timer
+      systemctl start hamclock-update.timer
+
       # Exit and let the new version take over
       if [ "$1" != "--updated" ]; then
         exec "$INSTALL_DIR/sbin/hamclock-update" --updated
