@@ -9,6 +9,13 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+# Clean up any existing lock files/directories
+LOCKFILE="/var/run/hamclock_update.lock"
+if [ -e "$LOCKFILE" ]; then
+  echo "Removing existing lock file/directory..."
+  rm -rf "$LOCKFILE"
+fi
+
 # Define repository URL
 REPO_URL="https://github.com/k4drw/hamclock-fb/raw/refs/heads/master"
 
