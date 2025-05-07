@@ -40,6 +40,19 @@ logger -s -t "$(basename "$0")" "Update service started at $(date '+%Y-%m-%d %H:
 
 # Add lock file to prevent concurrent runs
 LOCKFILE="/var/run/hamclock_update.lock"
+
+# Check if another instance is actually running
+if pgrep -f "^/usr/local/sbin/hamclock-update" | grep -v "$$" > /dev/null; then
+    logger -s -t "$(basename "$0")" "WARNING: Another instance is already running"
+    exit 1
+fi
+
+# Clean up old lock directory if it exists
+if [ -d "$LOCKFILE" ]; then
+    logger -s -t "$(basename "$0")" "Removing old lock directory"
+    rm -rf "$LOCKFILE"
+fi
+
 if ! exec 200> "$LOCKFILE"; then
     logger -s -t "$(basename "$0")" "ERROR: Failed to create lock file $LOCKFILE"
     exit 1
