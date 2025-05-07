@@ -42,7 +42,7 @@ logger -s -t "$(basename "$0")" "Update service started at $(date '+%Y-%m-%d %H:
 LOCKFILE="/var/run/hamclock_update.lock"
 
 # Check if another instance is actually running
-if pgrep -f "hamclock-update" | grep -v "$$" > /dev/null; then
+if pgrep -f "^/usr/local/sbin/hamclock-update" | grep -v "$$" > /dev/null; then
     logger -s -t "$(basename "$0")" "WARNING: Another instance is already running"
     exit 1
 fi
