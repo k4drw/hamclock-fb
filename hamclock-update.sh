@@ -3,6 +3,18 @@
 set -euo pipefail
 exec 1> >(tee -a /var/log/hamclock-update.log | logger -s -t "$(basename "$0")") 2>&1
 
+# Ensure flock is available, install if needed
+if ! command -v flock > /dev/null 2>&1; then
+    logger -s -t "$(basename "$0")" "flock not found, installing util-linux..."
+    apt update > /dev/null 2>&1
+    apt install -y util-linux > /dev/null 2>&1
+    if ! command -v flock > /dev/null 2>&1; then
+        logger -s -t "$(basename "$0")" "ERROR: Failed to install util-linux"
+        exit 1
+  fi
+    logger -s -t "$(basename "$0")" "util-linux installed successfully"
+fi
+
 # Parse command line arguments
 FORCE_UPDATE=0
 UPDATED=0
@@ -28,61 +40,97 @@ logger -s -t "$(basename "$0")" "Update service started at $(date '+%Y-%m-%d %H:
 
 # Add lock file to prevent concurrent runs
 LOCKFILE="/var/run/hamclock_update.lock"
-if ! mkdir "$LOCKFILE" 2> /dev/null; then
-  echo "Script is already running" >&2
-  exit 1
+if ! exec 200> "$LOCKFILE"; then
+    logger -s -t "$(basename "$0")" "ERROR: Failed to create lock file $LOCKFILE"
+    exit 1
+fi
+
+if ! flock -n 200; then
+    logger -s -t "$(basename "$0")" "WARNING: Another instance is already running"
+    exit 1
 fi
 
 # Check for updates to the wrapper scripts
 REPO_URL="https://github.com/k4drw/hamclock-fb"
 INSTALL_DIR="/usr/local"
-UPDATE_DIR=$(mktemp -d)
-trap 'rm -rf "$LOCKFILE" "$UPDATE_DIR"' EXIT
+REPO_DIR="/var/cache/hamclock/repo"
+trap 'cleanup' EXIT
+
+cleanup()
+          {
+    local exit_code=$?
+    logger -s -t "$(basename "$0")" "Cleaning up (exit code: $exit_code)"
+    flock -u 200
+    exit "$exit_code"
+}
 
 logger -s -t "$(basename "$0")" "Checking for wrapper script updates..."
-if curl -Ls "${REPO_URL}/archive/refs/heads/master.tar.gz" -o "${UPDATE_DIR}/repo.tar.gz"; then
-  cd "$UPDATE_DIR"
-  if tar xzf repo.tar.gz --strip-components=1; then
-    # Check if any of the files differ from the installed versions
-    UPDATE_NEEDED=false
 
-    # Check hamclock-update.sh
-    if [ -f hamclock-update.sh ] && ! cmp -s hamclock-update.sh "$INSTALL_DIR/sbin/hamclock-update"; then
-      UPDATE_NEEDED=true
-      logger -s -t "$(basename "$0")" "Update script has changed"
-    fi
+# Ensure git is available
+if ! command -v git > /dev/null 2>&1; then
+    logger -s -t "$(basename "$0")" "git not found, installing..."
+    apt update > /dev/null 2>&1
+    apt install -y git > /dev/null 2>&1
+    if ! command -v git > /dev/null 2>&1; then
+        logger -s -t "$(basename "$0")" "ERROR: Failed to install git"
+        exit 1
+  fi
+fi
 
-    # Check service files
-    for service_file in hamclock.service hamclock-update.service hamclock-update.timer; do
-      if [ -f "$service_file" ] && ! cmp -s "$service_file" "/etc/systemd/system/$service_file"; then
+# Clone or update repo
+if [ ! -d "$REPO_DIR" ]; then
+    logger -s -t "$(basename "$0")" "Cloning repository..."
+    if ! git clone "$REPO_URL" "$REPO_DIR" > /dev/null 2>&1; then
+        logger -s -t "$(basename "$0")" "ERROR: Failed to clone repository"
+        exit 1
+  fi
+else
+    logger -s -t "$(basename "$0")" "Updating repository..."
+    cd "$REPO_DIR"
+    if ! git fetch origin > /dev/null 2>&1 || ! git reset --hard origin/master > /dev/null 2>&1; then
+        logger -s -t "$(basename "$0")" "ERROR: Failed to update repository"
+        exit 1
+  fi
+fi
+
+# Check if any of the files differ from the installed versions
+UPDATE_NEEDED=false
+
+# Check hamclock-update.sh
+if [ -f "$REPO_DIR/hamclock-update.sh" ] && ! cmp -s "$REPO_DIR/hamclock-update.sh" "$INSTALL_DIR/sbin/hamclock-update"; then
+    UPDATE_NEEDED=true
+    logger -s -t "$(basename "$0")" "Update script has changed"
+fi
+
+# Check service files
+for service_file in hamclock.service hamclock-update.service hamclock-update.timer; do
+    if [ -f "$REPO_DIR/$service_file" ] && ! cmp -s "$REPO_DIR/$service_file" "/etc/systemd/system/$service_file"; then
         UPDATE_NEEDED=true
         logger -s -t "$(basename "$0")" "Service file $service_file has changed"
-      fi
-    done
-
-    # Update files if needed
-    if $UPDATE_NEEDED; then
-      # Update the scripts
-      install -m 755 hamclock-update.sh "$INSTALL_DIR/sbin/hamclock-update"
-      install -m 644 hamclock.service /etc/systemd/system/
-      install -m 644 hamclock-update.service /etc/systemd/system/
-      install -m 644 hamclock-update.timer /etc/systemd/system/
-      systemctl daemon-reload
-      logger -s -t "$(basename "$0")" "Wrapper scripts updated"
-
-      # Enable services
-      systemctl enable hamclock.service
-      systemctl enable hamclock-update.timer
-      systemctl start hamclock-update.timer
-
-      # Exit and let the new version take over
-      if [ "$UPDATED" -eq 0 ]; then
-        exec "$INSTALL_DIR/sbin/hamclock-update" --updated
-      fi
-    else
-      logger -s -t "$(basename "$0")" "No updates to wrapper scripts needed"
-    fi
   fi
+done
+
+# Update files if needed
+if $UPDATE_NEEDED; then
+    # Update the scripts
+    install -m 755 "$REPO_DIR/hamclock-update.sh" "$INSTALL_DIR/sbin/hamclock-update"
+    install -m 644 "$REPO_DIR/hamclock.service" /etc/systemd/system/
+    install -m 644 "$REPO_DIR/hamclock-update.service" /etc/systemd/system/
+    install -m 644 "$REPO_DIR/hamclock-update.timer" /etc/systemd/system/
+    systemctl daemon-reload
+    logger -s -t "$(basename "$0")" "Wrapper scripts updated"
+
+    # Enable services
+    systemctl enable hamclock.service
+    systemctl enable hamclock-update.timer
+    systemctl start hamclock-update.timer
+
+    # Exit and let the new version take over
+    if [ "$UPDATED" -eq 0 ]; then
+        exec "$INSTALL_DIR/sbin/hamclock-update" --updated
+  fi
+else
+    logger -s -t "$(basename "$0")" "No updates to wrapper scripts needed"
 fi
 
 cd /var/cache/hamclock || exit 1
