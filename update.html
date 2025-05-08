@@ -52,11 +52,18 @@
             font-size: 0.9em;
             margin-top: 10px;
         }
+        .version {
+            color: #666;
+            font-size: 1.1em;
+            margin: 10px 0;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>HamClock Update</h1>
+        <div class="version" id="version"></div>
         <button onclick="runUpdate()">Run Update Now</button>
         <div class="timestamp" id="timestamp"></div>
 
@@ -72,6 +79,7 @@
             fetch('/status')
                 .then(response => response.json())
                 .then(data => {
+                    document.getElementById('version').textContent = data.hamclock_info;
                     document.getElementById('timerStatus').textContent = data.timer_status;
                     document.getElementById('log').textContent = data.log_tail;
                     document.getElementById('timestamp').textContent = 'Last updated: ' + data.timestamp;
