@@ -1,0 +1,14 @@
+[Unit]
+Description=HamClock Update Web Interface
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/update_server.py
+User=root
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HamClock Update</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .status {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .log {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HamClock Update</h1>
+        <button onclick="runUpdate()">Run Update Now</button>
+        <div class="timestamp" id="timestamp"></div>
+
+        <h2>Timer Status</h2>
+        <div class="status" id="timerStatus"></div>
+
+        <h2>Recent Log</h2>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        function updateStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('timerStatus').textContent = data.timer_status;
+                    document.getElementById('log').textContent = data.log_tail;
+                    document.getElementById('timestamp').textContent = 'Last updated: ' + data.timestamp;
+                });
+        }
+
+        function runUpdate() {
+            fetch('/update')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Update started!');
+                    } else {
+                        alert('Error starting update: ' + data.success);
+                    }
+                });
+        }
+
+        // Update status every 5 seconds
+        updateStatus();
+        setInterval(updateStatus, 5000);
+    </script>
+</body>
+</html>
