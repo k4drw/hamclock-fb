@@ -92,9 +92,9 @@ def get_hamclock_info():
             stderr=subprocess.PIPE,
             text=True,
         ) as process:
-            stdout, stderr = process.communicate()
+            _stdout, stderr = process.communicate()
             if process.returncode == 0:
-                return stdout.strip()
+                return stderr.strip()
             return f"Error: {stderr.strip()}"
     except subprocess.SubprocessError as e:
         return f"Error getting version: {str(e)}"
@@ -114,9 +114,9 @@ def run_update():
             stderr=subprocess.PIPE,
             text=True,
         ) as process:
-            stdout, stderr = process.communicate()
+            _stdout, stderr = process.communicate()
             if process.returncode == 0:
-                logger.info(f"Current version: {stdout.strip()}")
+                logger.info(f"Current version: {stderr.strip()}")
             else:
                 logger.error(f"Error getting version: {stderr.strip()}")
 
