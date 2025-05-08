@@ -120,9 +120,10 @@ def run_update():
             else:
                 logger.error(f"Error getting version: {stderr.strip()}")
 
-        # Run update
+        # Run update in background
         with subprocess.Popen(["/usr/local/sbin/hamclock-update"]) as process:
             if process.poll() is None:  # Check if process started successfully
+                logger.info("Update process started")
                 return True
             return f"Update process failed to start: {process.returncode}"
     except subprocess.SubprocessError as e:

@@ -82,7 +82,17 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert('Update started!');
+                        // Update status immediately
+                        updateStatus();
+                        // Update more frequently during update
+                        const updateInterval = setInterval(() => {
+                            updateStatus();
+                        }, 1000);
+                        // Reset to normal interval after 2 minutes
+                        setTimeout(() => {
+                            clearInterval(updateInterval);
+                            setInterval(updateStatus, 5000);
+                        }, 120000);
                     } else {
                         alert('Error starting update: ' + data.success);
                     }
