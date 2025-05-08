@@ -140,6 +140,7 @@ class UpdateHandler(http.server.SimpleHTTPRequestHandler):
             /: Serves the main HTML interface
             /status: Returns JSON with current status
             /update: Triggers an update and returns result
+            /favicon.ico: Serves the favicon
         """
         if self.path == "/":
             self.send_response(200)
@@ -149,6 +150,13 @@ class UpdateHandler(http.server.SimpleHTTPRequestHandler):
             with open(HTML_PATH, "r", encoding="utf-8") as f:
                 html = f.read()
             self.wfile.write(html.encode())
+
+        elif self.path == "/favicon.png":
+            self.send_response(200)
+            self.send_header("Content-type", "image/png")
+            self.end_headers()
+            with open("/usr/local/sbin/favicon.png", "rb") as f:
+                self.wfile.write(f.read())
 
         elif self.path == "/status":
             self.send_response(200)
