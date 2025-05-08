@@ -1,7 +1,8 @@
 #!/bin/bash
 # error handling and logging
 set -euo pipefail
-exec 1> >(tee -a /var/log/hamclock-update.log | logger -s -t "$(basename "$0")") 2>&1
+exec 1> >(logger -s -t "$(basename "$0")") 2>&1
+sleep 1
 
 # Ensure flock is available, install if needed
 if ! command -v flock > /dev/null 2>&1; then
@@ -160,7 +161,7 @@ if $UPDATE_NEEDED; then
 
     # Exit and let the new version take over
     if [ "$UPDATED" -eq 0 ]; then
-        exec "$INSTALL_DIR/sbin/hamclock-update" --updated
+        "$INSTALL_DIR/sbin/hamclock-update" --updated &
   fi
 else
     logger -s -t "$(basename "$0")" "No updates to wrapper scripts needed"
