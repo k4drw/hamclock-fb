@@ -41,8 +41,8 @@ logger -s -t "$(basename "$0")" "Update service started at $(date '+%Y-%m-%d %H:
 # Add lock file to prevent concurrent runs
 LOCKFILE="/var/run/hamclock_update.lock"
 
-# Check if another instance is actually running
-if pgrep -f "^/usr/local/sbin/hamclock-update" | grep -v "$$" > /dev/null; then
+# Check if another instance is actually running (excluding our parent if we're a self-update)
+if pgrep -f "^/usr/local/sbin/hamclock-update" | grep -v "$$" | grep -v "$PPID" > /dev/null; then
     logger -s -t "$(basename "$0")" "WARNING: Another instance is already running"
     exit 1
 fi
