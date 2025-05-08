@@ -1,10 +1,13 @@
 [Unit]
 Description=Run HamClock Update Daily
+Requires=hamclock-update.service
 
 [Timer]
-OnCalendar=*-*-* 02:00:00
+OnCalendar=*-*-* 02:00:00 UTC
 RandomizedDelaySec=3600
 Persistent=true
+Unit=hamclock-update.service
+AccuracySec=1m
 
 [Install]
 WantedBy=timers.target
