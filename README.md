@@ -129,9 +129,35 @@ Note: If you need to override these automatic settings, you can modify the scrip
 - `/etc/systemd/system/hamclock.service` - HamClock service
 - `/etc/systemd/system/hamclock-update.service` - Update service
 - `/etc/systemd/system/hamclock-update.timer` - Update timer
+- `/etc/systemd/system/hamclock-update-web.service` - Web update interface service
+- `/usr/local/sbin/update_server.py` - Web update server
+- `/usr/local/sbin/update.html` - Web update interface
 - `/var/cache/hamclock/` - Cache directory for downloads and backups
 - `/var/run/hamclock_update.lock` - Lock file during updates
 - `/etc/default/hamclock` - Service configuration
+
+## Web Update Interface
+
+A web interface is available for managing HamClock updates:
+
+- Access at `http://your-device:8088`
+- View current HamClock version
+- Check update timer status
+- View recent update logs
+- Trigger manual updates
+- Real-time status updates
+
+The web interface runs on port 8088 by default. You can change this by setting `HAMCLOCK_UPDATE_PORT` in `/etc/default/hamclock`.
+
+To manage the web interface service:
+
+```bash
+# Check status
+systemctl status hamclock-update-web.service
+
+# View logs
+journalctl -u hamclock-update-web.service
+```
 
 ## Troubleshooting
 
