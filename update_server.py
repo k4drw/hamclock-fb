@@ -12,6 +12,7 @@ import os
 import subprocess
 import sys
 from datetime import datetime
+import re
 
 # Configure logging
 logging.basicConfig(
@@ -229,6 +230,16 @@ class UpdateHandler(http.server.SimpleHTTPRequestHandler):
                         if not line and process.poll() is not None:
                             break
                         if line:
+                            # Clean up logger output
+                            # Remove <13> prefix and duplicate timestamps
+                            line = line.replace("<13>", "")
+                            # Remove duplicate timestamp pattern
+                            # (e.g., "May  9 02:27:11 hamclock-update: ")
+                            line = re.sub(
+                                r"^[A-Za-z]+\s+\d+\s+\d+:\d+:\d+\s+hamclock-update:\s+",
+                                "",
+                                line,
+                            )
                             # Ensure each line ends with a newline
                             if not line.endswith("\n"):
                                 line += "\n"
