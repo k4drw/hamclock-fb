@@ -1,19 +1,38 @@
 #!/bin/bash
 # error handling and logging
 set -euo pipefail
-exec 1> >(logger -s -t "$(basename "$0")") 2>&1
-sleep 1
+
+# Logging function
+log() {
+    local level="$1"
+    shift
+    local message="$*"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+    # Log to stdout
+    echo "$timestamp $(basename "$0"): $message"
+
+    # Log to system logger
+    logger -p "user.$level" -t "$(basename "$0")" "$message"
+
+    # Log to file
+    echo "$timestamp $(basename "$0"): $message" >> /var/log/hamclock-update.log
+}
+
+# Ensure log directory exists
+mkdir -p /var/log
 
 # Ensure flock is available, install if needed
 if ! command -v flock > /dev/null 2>&1; then
-    logger -s -t "$(basename "$0")" "flock not found, installing util-linux..."
+    log info "flock not found, installing util-linux..."
     apt update > /dev/null 2>&1
     apt install -y util-linux > /dev/null 2>&1
     if ! command -v flock > /dev/null 2>&1; then
-        logger -s -t "$(basename "$0")" "ERROR: Failed to install util-linux"
+        log err "Failed to install util-linux"
         exit 1
   fi
-    logger -s -t "$(basename "$0")" "util-linux installed successfully"
+    log info "util-linux installed successfully"
 fi
 
 # Parse command line arguments
@@ -37,30 +56,30 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-logger -s -t "$(basename "$0")" "Update service started at $(date '+%Y-%m-%d %H:%M:%S')"
+log info "Update service started at $(date '+%Y-%m-%d %H:%M:%S')"
 
 # Add lock file to prevent concurrent runs
 LOCKFILE="/var/run/hamclock_update.lock"
 
 # Check if another instance is actually running (excluding our parent if we're a self-update)
 if pgrep -f "^/usr/local/sbin/hamclock-update" | grep -v "$$" | grep -v "$PPID" > /dev/null; then
-    logger -s -t "$(basename "$0")" "WARNING: Another instance is already running"
+    log warning "Another instance is already running"
     exit 1
 fi
 
 # Clean up old lock directory if it exists
 if [ -d "$LOCKFILE" ]; then
-    logger -s -t "$(basename "$0")" "Removing old lock directory"
+    log info "Removing old lock directory"
     rm -rf "$LOCKFILE"
 fi
 
 if ! exec 200> "$LOCKFILE"; then
-    logger -s -t "$(basename "$0")" "ERROR: Failed to create lock file $LOCKFILE"
+    log err "Failed to create lock file $LOCKFILE"
     exit 1
 fi
 
 if ! flock -n 200; then
-    logger -s -t "$(basename "$0")" "WARNING: Another instance is already running"
+    log warning "Another instance is already running"
     exit 1
 fi
 
@@ -70,10 +89,9 @@ INSTALL_DIR="/usr/local"
 REPO_DIR="/var/cache/hamclock/repo"
 trap 'cleanup' EXIT
 
-cleanup()
-          {
+cleanup() {
     local exit_code=$?
-    logger -s -t "$(basename "$0")" "Cleaning up (exit code: $exit_code)"
+    log info "Cleaning up (exit code: $exit_code)"
     flock -u 200
     exit "$exit_code"
 }
@@ -85,31 +103,31 @@ if [ -f /etc/default/hamclock ]; then
 fi
 HAMCLOCK_BRANCH=${HAMCLOCK_BRANCH:-master}
 
-logger -s -t "$(basename "$0")" "Checking for wrapper script updates..."
+log info "Checking for wrapper script updates..."
 
 # Ensure git is available
 if ! command -v git > /dev/null 2>&1; then
-    logger -s -t "$(basename "$0")" "git not found, installing..."
+    log info "git not found, installing..."
     apt update > /dev/null 2>&1
     apt install -y git > /dev/null 2>&1
     if ! command -v git > /dev/null 2>&1; then
-        logger -s -t "$(basename "$0")" "ERROR: Failed to install git"
+        log err "Failed to install git"
         exit 1
   fi
 fi
 
 # Clone or update repo
 if [ ! -d "$REPO_DIR" ]; then
-    logger -s -t "$(basename "$0")" "Cloning repository (branch: $HAMCLOCK_BRANCH)..."
+    log info "Cloning repository (branch: $HAMCLOCK_BRANCH)..."
     if ! git clone -b "$HAMCLOCK_BRANCH" "$REPO_URL" "$REPO_DIR" > /dev/null 2>&1; then
-        logger -s -t "$(basename "$0")" "ERROR: Failed to clone repository"
+        log err "Failed to clone repository"
         exit 1
   fi
 else
-    logger -s -t "$(basename "$0")" "Updating repository (branch: $HAMCLOCK_BRANCH)..."
+    log info "Updating repository (branch: $HAMCLOCK_BRANCH)..."
     cd "$REPO_DIR"
     if ! git fetch origin > /dev/null 2>&1 || ! git reset --hard "origin/$HAMCLOCK_BRANCH" > /dev/null 2>&1; then
-        logger -s -t "$(basename "$0")" "ERROR: Failed to update repository"
+        log err "Failed to update repository"
         exit 1
   fi
 fi
@@ -120,14 +138,14 @@ UPDATE_NEEDED=false
 # Check hamclock-update.sh
 if [ -f "$REPO_DIR/hamclock-update.sh" ] && ! cmp -s "$REPO_DIR/hamclock-update.sh" "$INSTALL_DIR/sbin/hamclock-update"; then
     UPDATE_NEEDED=true
-    logger -s -t "$(basename "$0")" "Update script has changed"
+    log info "Update script has changed"
 fi
 
 # Check service files
 for service_file in hamclock.service hamclock-update.service hamclock-update.timer hamclock-update-web.service; do
     if [ -f "$REPO_DIR/$service_file" ] && ! cmp -s "$REPO_DIR/$service_file" "/etc/systemd/system/$service_file"; then
         UPDATE_NEEDED=true
-        logger -s -t "$(basename "$0")" "Service file $service_file has changed"
+        log info "Service file $service_file has changed"
   fi
 done
 
@@ -135,7 +153,7 @@ done
 for web_file in update_server.py update.html; do
     if [ -f "$REPO_DIR/$web_file" ] && ! cmp -s "$REPO_DIR/$web_file" "/usr/local/sbin/$web_file"; then
         UPDATE_NEEDED=true
-        logger -s -t "$(basename "$0")" "Web interface file $web_file has changed"
+        log info "Web interface file $web_file has changed"
   fi
 done
 
@@ -150,7 +168,7 @@ if $UPDATE_NEEDED; then
     install -m 755 "$REPO_DIR/update_server.py" /usr/local/sbin/
     install -m 644 "$REPO_DIR/update.html" /usr/local/sbin/
     systemctl daemon-reload
-    logger -s -t "$(basename "$0")" "Wrapper scripts updated"
+    log info "Wrapper scripts updated"
 
     # Enable services
     systemctl enable hamclock.service
@@ -164,7 +182,7 @@ if $UPDATE_NEEDED; then
         "$INSTALL_DIR/sbin/hamclock-update" --updated &
   fi
 else
-    logger -s -t "$(basename "$0")" "No updates to wrapper scripts needed"
+    log info "No updates to wrapper scripts needed"
 fi
 
 cd /var/cache/hamclock || exit 1
@@ -173,7 +191,7 @@ cd /var/cache/hamclock || exit 1
 HCUPDATE=0
 
 if [ ! -f /var/cache/hamclock/ESPHamClock.tgz ]; then
-  touch --date="$(date -d 'last year' +'%Y-%m-%d %H:%M:%S')" /var/cache/hamclock/ESPHamClock.tgz
+    touch --date="$(date -d 'last year' +'%Y-%m-%d %H:%M:%S')" /var/cache/hamclock/ESPHamClock.tgz
 fi
 
 # Save MD5 to /tmp/md5
@@ -184,10 +202,10 @@ curl --output ESPHamClock.tgz -Rs -z ESPHamClock.tgz https://www.clearskyinstitu
 
 # Check if the MD5 matches
 if [ "$FORCE_UPDATE" -eq 1 ]; then
-    logger -s -t "$(basename "$0")" "Force update requested"
+    log info "Force update requested"
     HCUPDATE=1
 elif md5sum --quiet -c /tmp/md5; then
-    logger -s -t "$(basename "$0")" "No update to HamClock"
+    log info "No update to HamClock"
     HCUPDATE=0
 else
     HCUPDATE=1
@@ -221,7 +239,7 @@ if [ "$HCUPDATE" -eq 1 ]; then
 
     # Set framebuffer depth based on actual hardware
     if [ "$FB_DEPTH" -eq 32 ]; then
-        logger -s -t "$(basename "$0")" "Configuring for 32-bit framebuffer"
+        log info "Configuring for 32-bit framebuffer"
         sed -i -re 's/(#define _16BIT_FB)/\/\/\1/' ArduinoLib/Adafruit_RA8875.h
   fi
 
@@ -232,12 +250,12 @@ if [ "$HCUPDATE" -eq 1 ]; then
     sed -i '/#if defined (_USE_FB0)/,/#endif/c\#define _WIFI_NEVER' setup.cpp
 
     # Make hamclock with detected resolution
-    logger -s -t "$(basename "$0")" "Building with resolution: $RESOLUTION"
+    log info "Building with resolution: $RESOLUTION"
 
     # Determine optimal number of make jobs (number of cores minus 1, minimum 1)
     NUM_CORES=$(nproc)
     MAKE_JOBS=$((NUM_CORES > 1 ? NUM_CORES - 1 : 1))
-    logger -s -t "$(basename "$0")" "Using $MAKE_JOBS make jobs on $NUM_CORES cores"
+    log info "Using $MAKE_JOBS make jobs on $NUM_CORES cores"
 
     make -j"$MAKE_JOBS" "$RESOLUTION"
     make install
@@ -252,27 +270,27 @@ export DEBIAN_FRONTEND=noninteractive
 ln -fs /usr/share/zoneinfo/UTC /etc/localtime
 
 # Run apt update, no need for the output
-logger -s -t "$(basename "$0")" "Checking for system updates..."
+log info "Checking for system updates..."
 apt update &> /dev/null
 
-UPDATES=$(apt list --upgradable | wc -l)
-logger -s -t "$(basename "$0")" "Found $((UPDATES -= 1)) packages to update"
+UPDATES=$(apt list --upgradable 2> /dev/null | wc -l)
+log info "Found $((UPDATES -= 1)) packages to update"
 
 if [ "$UPDATES" -gt 1 ]; then
-  systemctl stop hamclock.service
+    systemctl stop hamclock.service
 
-  # First handle regular updates
-  logger -s -t "$(basename "$0")" "Starting system update"
-  apt upgrade -y
+    # First handle regular updates
+    log info "Starting system update"
+    apt upgrade -y
 
-  # Explicitly handle tzdata if it's held back
-  if apt list --upgradable 2> /dev/null | grep -q "^tzdata/"; then
-    apt install --only-upgrade -y --allow-change-held-packages tzdata
+    # Explicitly handle tzdata if it's held back
+    if apt list --upgradable 2> /dev/null | grep -q "^tzdata/"; then
+        apt install --only-upgrade -y --allow-change-held-packages tzdata
   fi
 
-  logger -s -t "$(basename "$0")" "System update complete, rebooting"
-  shutdown -r now
+    log info "System update complete, rebooting"
+    shutdown -r now
 elif [ "$HCUPDATE" -eq 1 ]; then
-  logger -s -t "$(basename "$0")" "Restarting hamclock"
-  systemctl restart hamclock.service
+    log info "Restarting hamclock"
+    systemctl restart hamclock.service
 fi
