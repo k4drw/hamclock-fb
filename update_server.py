@@ -120,8 +120,15 @@ def run_update():
             else:
                 logger.error(f"Error getting version: {stderr.strip()}")
 
-        # Run update in background
-        with subprocess.Popen(["/usr/local/sbin/hamclock-update"]) as process:
+        # Run update in background with output capture
+        with subprocess.Popen(
+            ["/usr/local/sbin/hamclock-update"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True,
+        ) as process:
             if process.poll() is None:  # Check if process started successfully
                 logger.info("Update process started")
                 return True
@@ -140,7 +147,8 @@ class UpdateHandler(http.server.SimpleHTTPRequestHandler):
             /: Serves the main HTML interface
             /status: Returns JSON with current status
             /update: Triggers an update and returns result
-            /favicon.ico: Serves the favicon
+            /favicon.png: Serves the favicon
+            /stream: Streams update output
         """
         if self.path == "/":
             self.send_response(200)
@@ -157,6 +165,33 @@ class UpdateHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             with open("/usr/local/sbin/favicon.png", "rb") as f:
                 self.wfile.write(f.read())
+
+        elif self.path == "/stream":
+            self.send_response(200)
+            self.send_header("Content-type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
+
+            try:
+                with subprocess.Popen(
+                    ["/usr/local/sbin/hamclock-update"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True,
+                ) as process:
+                    while True:
+                        line = process.stdout.readline()
+                        if not line and process.poll() is not None:
+                            break
+                        if line:
+                            self.wfile.write(f"data: {line}\n\n".encode())
+                            self.wfile.flush()
+            except (subprocess.SubprocessError, IOError) as e:
+                self.wfile.write(f"data: Error: {str(e)}\n\n".encode())
+                self.wfile.flush()
 
         elif self.path == "/status":
             self.send_response(200)

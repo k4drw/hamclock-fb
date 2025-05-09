@@ -91,17 +91,21 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Update status immediately
-                        updateStatus();
-                        // Update more frequently during update
-                        const updateInterval = setInterval(() => {
+                        // Clear log and start streaming
+                        document.getElementById('log').textContent = '';
+                        const eventSource = new EventSource('/stream');
+
+                        eventSource.onmessage = function(event) {
+                            const log = document.getElementById('log');
+                            log.textContent += event.data;
+                            log.scrollTop = log.scrollHeight;
+                        };
+
+                        eventSource.onerror = function() {
+                            eventSource.close();
+                            // Resume normal status updates
                             updateStatus();
-                        }, 1000);
-                        // Reset to normal interval after 2 minutes
-                        setTimeout(() => {
-                            clearInterval(updateInterval);
-                            setInterval(updateStatus, 5000);
-                        }, 120000);
+                        };
                     } else {
                         alert('Error starting update: ' + data.success);
                     }
