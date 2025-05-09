@@ -112,8 +112,8 @@
 
                         eventSource.onmessage = function(event) {
                             const log = document.getElementById('log');
-                            // Replace any existing newlines with <br> and add new content
-                            log.innerHTML = log.innerHTML.replace(/\n/g, '<br>') + event.data.replace(/\n/g, '<br>');
+                            // Add new content with <br> tags
+                            log.innerHTML += event.data + '<br>';
                             log.scrollTop = log.scrollHeight;
                         };
 
