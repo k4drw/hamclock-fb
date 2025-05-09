@@ -3,7 +3,8 @@ repos:
     rev: v0.9.0
     hooks:
       - id: shellcheck
-        args: ["--severity=error"]
+        args: ["--severity=error", "--external-sources"]
+        files: \.(sh|bash)$
 
   - repo: https://github.com/scop/pre-commit-shfmt
     rev: v3.11.0-1
@@ -16,3 +17,30 @@ repos:
     hooks:
       - id: markdownlint
         args: ["--config", ".markdownlint.json"]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: https://github.com/psf/black
+    rev: 24.2.0
+    hooks:
+      - id: black
+        language_version: python3
+
+  - repo: https://github.com/pycqa/pylint
+    rev: v3.0.3
+    hooks:
+      - id: pylint
+        additional_dependencies: [pylint-django]
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        additional_dependencies: [flake8-docstrings]
+        args: [--max-line-length=90]
