@@ -37,7 +37,7 @@ jobs:
     - name: Run shfmt
       uses: luizm/action-sh-checker@v0.7.0
       env:
-        SHFMT_OPTS: "-ci -kp -sr -i 2"
+        SHFMT_OPTS: "-ci -kp -sr -i 4"
       with:
         sh_checker_shellcheck_disable: false
         sh_checker_shfmt_disable: false

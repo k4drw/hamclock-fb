@@ -31,13 +31,14 @@ if ! command -v flock > /dev/null 2>&1; then
     if ! command -v flock > /dev/null 2>&1; then
         log err "Failed to install util-linux"
         exit 1
-  fi
+    fi
     log info "util-linux installed successfully"
 fi
 
 # Parse command line arguments
 FORCE_UPDATE=0
 UPDATED=0
+TEST_MODE=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -47,12 +48,15 @@ while [ $# -gt 0 ]; do
         --updated)
             UPDATED=1
             ;;
+        --test)
+            TEST_MODE=1
+            ;;
         *)
             echo "Unknown option: $1" >&2
-            echo "Usage: $(basename "$0") [--force] [--updated]" >&2
+            echo "Usage: $(basename "$0") [--force] [--updated] [--test]" >&2
             exit 1
             ;;
-  esac
+    esac
     shift
 done
 
@@ -83,106 +87,119 @@ if ! flock -n 200; then
     exit 1
 fi
 
-# Check for updates to the wrapper scripts
-REPO_URL="https://github.com/k4drw/hamclock-fb"
-INSTALL_DIR="/usr/local"
-REPO_DIR="/var/cache/hamclock/repo"
-trap 'cleanup' EXIT
-
+# Define cleanup function and trap
 cleanup() {
     local exit_code=$?
     log info "Cleaning up (exit code: $exit_code)"
     flock -u 200
     exit "$exit_code"
 }
+trap 'cleanup' EXIT
 
-# Load branch from config
-if [ -f /etc/default/hamclock ]; then
-    # shellcheck source=/dev/null
-    . /etc/default/hamclock
-fi
-HAMCLOCK_BRANCH=${HAMCLOCK_BRANCH:-master}
+# Check for updates to the wrapper scripts
+if [ "$TEST_MODE" -eq 0 ]; then
+    REPO_URL="https://github.com/k4drw/hamclock-fb"
+    INSTALL_DIR="/usr/local"
+    REPO_DIR="/var/cache/hamclock/repo"
 
-log info "Checking for wrapper script updates..."
+    # Load branch from config
+    if [ -f /etc/default/hamclock ]; then
+        # shellcheck source=/dev/null
+        . /etc/default/hamclock
+    fi
+    HAMCLOCK_BRANCH=${HAMCLOCK_BRANCH:-master}
 
-# Ensure git is available
-if ! command -v git > /dev/null 2>&1; then
-    log info "git not found, installing..."
-    apt update > /dev/null 2>&1
-    apt install -y git > /dev/null 2>&1
+    log info "Checking for wrapper script updates..."
+
+    # Ensure git is available
     if ! command -v git > /dev/null 2>&1; then
-        log err "Failed to install git"
-        exit 1
-  fi
-fi
+        log info "git not found, installing..."
+        apt update > /dev/null 2>&1
+        apt install -y git > /dev/null 2>&1
+        if ! command -v git > /dev/null 2>&1; then
+            log err "Failed to install git"
+            exit 1
+        fi
+        log info "git installed successfully"
+    fi
 
-# Clone or update repo
-if [ ! -d "$REPO_DIR" ]; then
-    log info "Cloning repository (branch: $HAMCLOCK_BRANCH)..."
-    if ! git clone -b "$HAMCLOCK_BRANCH" "$REPO_URL" "$REPO_DIR" > /dev/null 2>&1; then
-        log err "Failed to clone repository"
-        exit 1
-  fi
-else
-    log info "Updating repository (branch: $HAMCLOCK_BRANCH)..."
-    cd "$REPO_DIR"
-    if ! git fetch origin > /dev/null 2>&1 || ! git reset --hard "origin/$HAMCLOCK_BRANCH" > /dev/null 2>&1; then
-        log err "Failed to update repository"
-        exit 1
-  fi
-fi
+    # Clone or update repo
+    if [ ! -d "$REPO_DIR" ]; then
+        log info "Cloning repository (branch: $HAMCLOCK_BRANCH)..."
+        if ! git clone -b "$HAMCLOCK_BRANCH" "$REPO_URL" "$REPO_DIR" > /dev/null 2>&1; then
+            log err "Failed to clone repository"
+            exit 1
+        fi
+    else
+        log info "Updating repository (branch: $HAMCLOCK_BRANCH)..."
+        cd "$REPO_DIR"
+        if ! git fetch origin > /dev/null 2>&1 || ! git reset --hard "origin/$HAMCLOCK_BRANCH" > /dev/null 2>&1; then
+            log err "Failed to update repository"
+            exit 1
+        fi
+    fi
 
-# Check if any of the files differ from the installed versions
-UPDATE_NEEDED=false
+    # Check if any of the files differ from the installed versions
+    UPDATE_NEEDED=false
 
-# Check hamclock-update.sh
-if [ -f "$REPO_DIR/hamclock-update.sh" ] && ! cmp -s "$REPO_DIR/hamclock-update.sh" "$INSTALL_DIR/sbin/hamclock-update"; then
-    UPDATE_NEEDED=true
-    log info "Update script has changed"
-fi
-
-# Check service files
-for service_file in hamclock.service hamclock-update.service hamclock-update.timer hamclock-update-web.service; do
-    if [ -f "$REPO_DIR/$service_file" ] && ! cmp -s "$REPO_DIR/$service_file" "/etc/systemd/system/$service_file"; then
+    # Check hamclock-update.sh
+    if [ -f "$REPO_DIR/hamclock-update.sh" ] && ! cmp -s "$REPO_DIR/hamclock-update.sh" "$INSTALL_DIR/sbin/hamclock-update"; then
         UPDATE_NEEDED=true
-        log info "Service file $service_file has changed"
-  fi
-done
+        log info "Update script has changed"
+    fi
 
-# Check web interface files
-for web_file in update_server.py update.html; do
-    if [ -f "$REPO_DIR/$web_file" ] && ! cmp -s "$REPO_DIR/$web_file" "/usr/local/sbin/$web_file"; then
-        UPDATE_NEEDED=true
-        log info "Web interface file $web_file has changed"
-  fi
-done
+    # Check service files
+    for service_file in hamclock.service hamclock-update.service hamclock-update.timer hamclock-update-web.service; do
+        if [ -f "$REPO_DIR/$service_file" ] && ! cmp -s "$REPO_DIR/$service_file" "/etc/systemd/system/$service_file"; then
+            UPDATE_NEEDED=true
+            log info "Service file $service_file has changed"
+        fi
+    done
 
-# Update files if needed
-if $UPDATE_NEEDED; then
-    # Update the scripts
-    install -m 755 "$REPO_DIR/hamclock-update.sh" "$INSTALL_DIR/sbin/hamclock-update"
-    install -m 644 "$REPO_DIR/hamclock.service" /etc/systemd/system/
-    install -m 644 "$REPO_DIR/hamclock-update.service" /etc/systemd/system/
-    install -m 644 "$REPO_DIR/hamclock-update.timer" /etc/systemd/system/
-    install -m 644 "$REPO_DIR/hamclock-update-web.service" /etc/systemd/system/
-    install -m 755 "$REPO_DIR/update_server.py" /usr/local/sbin/
-    install -m 644 "$REPO_DIR/update.html" /usr/local/sbin/
-    systemctl daemon-reload
-    log info "Wrapper scripts updated"
+    # Check web interface files
+    for web_file in update_server.py update.html; do
+        if [ -f "$REPO_DIR/$web_file" ] && ! cmp -s "$REPO_DIR/$web_file" "/usr/local/sbin/$web_file"; then
+            UPDATE_NEEDED=true
+            log info "Web interface file $web_file has changed"
+        fi
+    done
 
-    # Enable services
-    systemctl enable hamclock.service
-    systemctl enable hamclock-update.timer
-    systemctl enable hamclock-update-web.service
-    systemctl start hamclock-update.timer
-    systemctl start hamclock-update-web.service
+    # Update files if needed
+    if $UPDATE_NEEDED; then
+        # Update the scripts
+        install -m 755 "$REPO_DIR/hamclock-update.sh" "$INSTALL_DIR/sbin/hamclock-update"
+        install -m 644 "$REPO_DIR/hamclock.service" /etc/systemd/system/
+        install -m 644 "$REPO_DIR/hamclock-update.service" /etc/systemd/system/
+        install -m 644 "$REPO_DIR/hamclock-update.timer" /etc/systemd/system/
+        install -m 644 "$REPO_DIR/hamclock-update-web.service" /etc/systemd/system/
+        install -m 755 "$REPO_DIR/update_server.py" /usr/local/sbin/
+        install -m 644 "$REPO_DIR/update.html" /usr/local/sbin/
+        systemctl daemon-reload
+        log info "Wrapper scripts updated"
 
-    # Exit and let the new version take over
-    if [ "$UPDATED" -eq 0 ]; then
-        "$INSTALL_DIR/sbin/hamclock-update" --updated &
-  fi
+        # Enable services
+        systemctl enable hamclock.service
+        systemctl enable hamclock-update.timer
+        systemctl enable hamclock-update-web.service
+        systemctl start hamclock-update.timer
+        systemctl start hamclock-update-web.service
+
+        # Exit and let the new version take over
+        if [ "$UPDATED" -eq 0 ]; then
+            "$INSTALL_DIR/sbin/hamclock-update" --updated &
+            exit 0
+        fi
+    else
+        log info "No updates to wrapper scripts needed"
+    fi
 else
-    log info "No updates to wrapper scripts needed"
+    log info "Test mode: Skipping wrapper script updates"
+fi
+
+# Ensure cache directory exists
+if [ ! -d /var/cache/hamclock ]; then
+    log info "Creating cache directory"
+    mkdir -p /var/cache/hamclock
 fi
 
 cd /var/cache/hamclock || exit 1
@@ -229,22 +246,19 @@ if [ "$HCUPDATE" -eq 1 ]; then
     # Determine closest resolution that fits within screen dimensions
     if [ "$FB_WIDTH" -ge 3200 ] && [ "$FB_HEIGHT" -ge 1920 ]; then
         RESOLUTION="hamclock-fb0-3200x1920"
-  elif   [ "$FB_WIDTH" -ge 2400 ] && [ "$FB_HEIGHT" -ge 1440 ]; then
+    elif [ "$FB_WIDTH" -ge 2400 ] && [ "$FB_HEIGHT" -ge 1440 ]; then
         RESOLUTION="hamclock-fb0-2400x1440"
-  elif   [ "$FB_WIDTH" -ge 1600 ] && [ "$FB_HEIGHT" -ge 960 ]; then
+    elif [ "$FB_WIDTH" -ge 1600 ] && [ "$FB_HEIGHT" -ge 960 ]; then
         RESOLUTION="hamclock-fb0-1600x960"
-  else
+    else
         RESOLUTION="hamclock-fb0-800x480"
-  fi
+    fi
 
     # Set framebuffer depth based on actual hardware
     if [ "$FB_DEPTH" -eq 32 ]; then
         log info "Configuring for 32-bit framebuffer"
         sed -i -re 's/(#define _16BIT_FB)/\/\/\1/' ArduinoLib/Adafruit_RA8875.h
-  fi
-
-    # I prefer a lower value for WiFi signal strength
-    sed -i -re 's/MIN_WIFI_RSSI (-75)/MIN_WIFI_RSSI (-90)/' HamClock.h
+    fi
 
     # Don't show the wifi setup on FB0
     sed -i '/#if defined (_USE_FB0)/,/#endif/c\#define _WIFI_NEVER' setup.cpp
@@ -271,8 +285,9 @@ ln -fs /usr/share/zoneinfo/UTC /etc/localtime
 
 # Run apt update, no need for the output
 log info "Checking for system updates..."
-apt update &> /dev/null
+apt update > /dev/null 2>&1
 
+# Count upgradable packages more accurately
 UPDATES=$(apt list --upgradable 2> /dev/null | wc -l)
 log info "Found $((UPDATES -= 1)) packages to update"
 
@@ -286,7 +301,7 @@ if [ "$UPDATES" -gt 1 ]; then
     # Explicitly handle tzdata if it's held back
     if apt list --upgradable 2> /dev/null | grep -q "^tzdata/"; then
         apt install --only-upgrade -y --allow-change-held-packages tzdata
-  fi
+    fi
 
     log info "System update complete, rebooting"
     shutdown -r now
