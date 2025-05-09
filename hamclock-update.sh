@@ -252,7 +252,7 @@ export DEBIAN_FRONTEND=noninteractive
 ln -fs /usr/share/zoneinfo/UTC /etc/localtime
 
 # Run apt update, no need for the output
-apt update > /dev/null 2>&1
+apt update &> /dev/null
 
 UPDATES=$(apt list --upgradable | wc -l)
 
