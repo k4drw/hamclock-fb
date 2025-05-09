@@ -252,15 +252,17 @@ export DEBIAN_FRONTEND=noninteractive
 ln -fs /usr/share/zoneinfo/UTC /etc/localtime
 
 # Run apt update, no need for the output
+logger -s -t "$(basename "$0")" "Checking for system updates..."
 apt update &> /dev/null
 
 UPDATES=$(apt list --upgradable | wc -l)
+logger -s -t "$(basename "$0")" "Found $((UPDATES -= 1)) packages to update"
 
 if [ "$UPDATES" -gt 1 ]; then
-  logger -s -t "$(basename "$0")" "Updating $((UPDATES -= 1)) packages"
   systemctl stop hamclock.service
 
   # First handle regular updates
+  logger -s -t "$(basename "$0")" "Starting system update"
   apt upgrade -y
 
   # Explicitly handle tzdata if it's held back
@@ -268,6 +270,7 @@ if [ "$UPDATES" -gt 1 ]; then
     apt install --only-upgrade -y --allow-change-held-packages tzdata
   fi
 
+  logger -s -t "$(basename "$0")" "System update complete, rebooting"
   shutdown -r now
 elif [ "$HCUPDATE" -eq 1 ]; then
   logger -s -t "$(basename "$0")" "Restarting hamclock"
