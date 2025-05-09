@@ -100,6 +100,48 @@ def get_hamclock_info():
         return f"Error getting version: {str(e)}"
 
 
+def get_git_info():
+    """Get git repository information.
+
+    Returns:
+        str: Git commit info and branch or error message.
+    """
+    try:
+        # Get current branch
+        with subprocess.Popen(
+            ["git", "-C", "/var/cache/hamclock/repo", "branch", "--show-current"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ) as process:
+            branch_stdout, branch_stderr = process.communicate()
+            if process.returncode != 0:
+                return f"Error: {branch_stderr.strip()}"
+            branch = branch_stdout.strip()
+
+        # Get latest commit info
+        with subprocess.Popen(
+            [
+                "git",
+                "-C",
+                "/var/cache/hamclock/repo",
+                "log",
+                "-1",
+                "--format=%h %ad",
+                "--date=short",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ) as process:
+            commit_stdout, commit_stderr = process.communicate()
+            if process.returncode == 0:
+                return f"{branch} ({commit_stdout.strip()})"
+            return f"Error: {commit_stderr.strip()}"
+    except subprocess.SubprocessError as e:
+        return f"Error getting git info: {str(e)}"
+
+
 def run_update():
     """Run the update script.
 
@@ -187,6 +229,9 @@ class UpdateHandler(http.server.SimpleHTTPRequestHandler):
                         if not line and process.poll() is not None:
                             break
                         if line:
+                            # Ensure each line ends with a newline
+                            if not line.endswith("\n"):
+                                line += "\n"
                             self.wfile.write(f"data: {line}\n\n".encode())
                             self.wfile.flush()
             except (subprocess.SubprocessError, IOError) as e:
@@ -202,6 +247,7 @@ class UpdateHandler(http.server.SimpleHTTPRequestHandler):
                 "timer_status": get_update_status(),
                 "log_tail": get_log_tail(),
                 "hamclock_info": get_hamclock_info(),
+                "git_info": get_git_info(),
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             }
             self.wfile.write(json.dumps(status).encode())

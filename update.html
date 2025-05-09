@@ -52,18 +52,32 @@
             font-size: 0.9em;
             margin-top: 10px;
         }
-        .version {
+        .version, .git-info {
             color: #666;
             font-size: 1.1em;
             margin: 10px 0;
             font-family: monospace;
+        }
+        .git-info {
+            font-size: 0.9em;
+        }
+        .label {
+            font-weight: bold;
+            margin-right: 8px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>HamClock Update</h1>
-        <div class="version" id="version"></div>
+        <div class="version">
+            <span class="label">HamClock:</span>
+            <span id="version"></span>
+        </div>
+        <div class="git-info">
+            <span class="label">Update Script:</span>
+            <span id="gitInfo"></span>
+        </div>
         <button onclick="runUpdate()">Run Update Now</button>
         <div class="timestamp" id="timestamp"></div>
 
@@ -80,6 +94,7 @@
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('version').textContent = data.hamclock_info;
+                    document.getElementById('gitInfo').textContent = data.git_info;
                     document.getElementById('timerStatus').textContent = data.timer_status;
                     document.getElementById('log').textContent = data.log_tail;
                     document.getElementById('timestamp').textContent = 'Last updated: ' + data.timestamp;
@@ -97,7 +112,8 @@
 
                         eventSource.onmessage = function(event) {
                             const log = document.getElementById('log');
-                            log.textContent += event.data;
+                            // Replace any existing newlines with <br> and add new content
+                            log.innerHTML = log.innerHTML.replace(/\n/g, '<br>') + event.data.replace(/\n/g, '<br>');
                             log.scrollTop = log.scrollHeight;
                         };
 
