@@ -8,9 +8,12 @@ Type=oneshot
 ExecStart=/usr/local/sbin/hamclock-update
 User=root
 TimeoutStartSec=1800
-RemainAfterExit=yes
 StandardOutput=journal
 StandardError=journal
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Install]
 WantedBy=multi-user.target

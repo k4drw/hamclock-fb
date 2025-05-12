@@ -11,13 +11,13 @@ log() {
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     # Log to stdout
-    echo "$timestamp $(basename "$0"): $message"
+    echo "$timestamp $(basename "$0")[$$]: $message"
 
     # Log to system logger
-    logger -p "user.$level" -t "$(basename "$0")" "$message"
+    logger -p "user.$level" -t "$(basename "$0")[$$]" "$message"
 
     # Log to file
-    echo "$timestamp $(basename "$0"): $message" >> /var/log/hamclock-update.log
+    echo "$timestamp $(basename "$0")[$$]: $message" >> /var/log/hamclock-update.log
 }
 
 # Ensure log directory exists
@@ -60,16 +60,16 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+# If we're the updated version, wait for parent to exit
+if [ "$UPDATED" -eq 1 ]; then
+    log info "Waiting for parent process to exit..."
+    sleep 3
+fi
+
 log info "Update service started at $(date '+%Y-%m-%d %H:%M:%S')"
 
 # Add lock file to prevent concurrent runs
 LOCKFILE="/var/run/hamclock_update.lock"
-
-# Check if another instance is actually running (excluding our parent if we're a self-update)
-if pgrep -f "^/usr/local/sbin/hamclock-update" | grep -v "$$" | grep -v "$PPID" > /dev/null; then
-    log warning "Another instance is already running"
-    exit 1
-fi
 
 # Clean up old lock directory if it exists
 if [ -d "$LOCKFILE" ]; then
@@ -83,7 +83,7 @@ if ! exec 200> "$LOCKFILE"; then
 fi
 
 if ! flock -n 200; then
-    log warning "Another instance is already running"
+    log warning "Another instance is already running (lock file: $LOCKFILE)"
     exit 1
 fi
 
@@ -177,18 +177,19 @@ if [ "$TEST_MODE" -eq 0 ]; then
         systemctl daemon-reload
         log info "Wrapper scripts updated"
 
-        # Enable services
+        # Enable services (but don't start them)
         systemctl enable hamclock.service
         systemctl enable hamclock-update.timer
         systemctl enable hamclock-update-web.service
-        systemctl start hamclock-update.timer
-        systemctl start hamclock-update-web.service
+
+        # Release the lock before launching new version
+        log info "Releasing lock before launching new version"
+        flock -u 200
 
         # Exit and let the new version take over
-        if [ "$UPDATED" -eq 0 ]; then
-            "$INSTALL_DIR/sbin/hamclock-update" --updated &
-            exit 0
-        fi
+        log info "Launching new version with --updated"
+        "$INSTALL_DIR/sbin/hamclock-update" --updated &
+        exit 0
     else
         log info "No updates to wrapper scripts needed"
     fi

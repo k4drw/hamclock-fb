@@ -26,7 +26,11 @@ def load_config():
     Returns:
         dict: Configuration values with defaults for missing settings.
     """
-    default_config = {"HAMCLOCK_UPDATE_PORT": "8088", "HAMCLOCK_BRANCH": "master"}
+    default_config = {
+        "HAMCLOCK_UPDATE_PORT": "8088",
+        "HAMCLOCK_BRANCH": "master",
+        "HAMCLOCK_STATUS_INTERVAL": "30",  # seconds
+    }
 
     try:
         with open("/etc/default/hamclock", "r", encoding="utf-8") as f:
@@ -46,6 +50,9 @@ CONFIG = load_config()
 PORT = int(os.getenv("HAMCLOCK_UPDATE_PORT", CONFIG["HAMCLOCK_UPDATE_PORT"]))
 UPDATE_LOG = "/var/log/hamclock-update.log"
 HTML_PATH = "/usr/local/sbin/update.html"
+STATUS_UPDATE_INTERVAL = int(
+    os.getenv("HAMCLOCK_STATUS_INTERVAL", CONFIG["HAMCLOCK_STATUS_INTERVAL"])
+)  # seconds
 
 
 def get_update_status():
@@ -191,6 +198,7 @@ class UpdateHandler(http.server.SimpleHTTPRequestHandler):
             /update: Triggers an update and returns result
             /favicon.png: Serves the favicon
             /stream: Streams update output
+            /health: Returns server health status
         """
         if self.path == "/":
             self.send_response(200)
@@ -200,6 +208,10 @@ class UpdateHandler(http.server.SimpleHTTPRequestHandler):
             try:
                 with open(HTML_PATH, "r", encoding="utf-8") as f:
                     html = f.read()
+                # Replace the interval placeholder with the actual value
+                html = html.replace(
+                    "${STATUS_UPDATE_INTERVAL}", str(STATUS_UPDATE_INTERVAL)
+                )
                 self.wfile.write(html.encode())
             except (IOError, OSError) as e:
                 logger.error(f"Failed to read HTML file: {e}")
@@ -263,6 +275,12 @@ class UpdateHandler(http.server.SimpleHTTPRequestHandler):
 
             result = run_update()
             self.wfile.write(json.dumps({"success": result}).encode())
+
+        elif self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "healthy"}).encode())
 
         else:
             self.send_error(404)
