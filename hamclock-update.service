@@ -8,7 +8,6 @@ Type=oneshot
 ExecStart=/usr/local/sbin/hamclock-update
 User=root
 TimeoutStartSec=1800
-RemainAfterExit=yes
 StandardOutput=journal
 StandardError=journal
 
