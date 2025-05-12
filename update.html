@@ -65,6 +65,27 @@
             font-weight: bold;
             margin-right: 8px;
         }
+        .loading {
+            display: none;
+            margin: 10px 0;
+            color: #666;
+        }
+        .error {
+            display: none;
+            color: #dc3545;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8d7da;
+            border-radius: 5px;
+        }
+        .success {
+            display: none;
+            color: #28a745;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #d4edda;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -78,8 +99,12 @@
             <span class="label">Update Script:</span>
             <span id="gitInfo"></span>
         </div>
-        <button onclick="runUpdate()">Run Update Now</button>
+        <button onclick="runUpdate()" id="updateButton">Run Update Now</button>
+        <div class="loading" id="loading">Update in progress...</div>
+        <div class="error" id="error"></div>
+        <div class="success" id="success"></div>
         <div class="timestamp" id="timestamp"></div>
+        <div class="timestamp" id="lastSuccess"></div>
 
         <h2>Timer Status</h2>
         <div class="status" id="timerStatus"></div>
@@ -89,21 +114,60 @@
     </div>
 
     <script>
+        let lastSuccessfulUpdate = localStorage.getItem('lastSuccessfulUpdate') || 'Never';
+
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.textContent = message;
+            error.style.display = 'block';
+            setTimeout(() => {
+                error.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const success = document.getElementById('success');
+            success.textContent = message;
+            success.style.display = 'block';
+            setTimeout(() => {
+                success.style.display = 'none';
+            }, 5000);
+        }
+
         function updateStatus() {
             fetch('/status')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     document.getElementById('version').textContent = data.hamclock_info;
                     document.getElementById('gitInfo').textContent = data.git_info;
                     document.getElementById('timerStatus').textContent = data.timer_status;
                     document.getElementById('log').textContent = data.log_tail;
                     document.getElementById('timestamp').textContent = 'Last updated: ' + data.timestamp;
+                    document.getElementById('lastSuccess').textContent = 'Last successful update: ' + lastSuccessfulUpdate;
+                })
+                .catch(error => {
+                    showError('Failed to update status: ' + error.message);
                 });
         }
 
         function runUpdate() {
+            const button = document.getElementById('updateButton');
+            const loading = document.getElementById('loading');
+            button.disabled = true;
+            loading.style.display = 'block';
+
             fetch('/update')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         // Clear log and start streaming
@@ -112,25 +176,33 @@
 
                         eventSource.onmessage = function(event) {
                             const log = document.getElementById('log');
-                            // Add new content with <br> tags
                             log.innerHTML += event.data + '<br>';
                             log.scrollTop = log.scrollHeight;
                         };
 
                         eventSource.onerror = function() {
                             eventSource.close();
-                            // Resume normal status updates
+                            button.disabled = false;
+                            loading.style.display = 'none';
+                            lastSuccessfulUpdate = new Date().toLocaleString();
+                            localStorage.setItem('lastSuccessfulUpdate', lastSuccessfulUpdate);
+                            showSuccess('Update completed successfully');
                             updateStatus();
                         };
                     } else {
-                        alert('Error starting update: ' + data.success);
+                        throw new Error(data.success);
                     }
+                })
+                .catch(error => {
+                    button.disabled = false;
+                    loading.style.display = 'none';
+                    showError('Error starting update: ' + error.message);
                 });
         }
 
-        // Update status every 5 seconds
+        // Update status every N seconds
         updateStatus();
-        setInterval(updateStatus, 5000);
+        setInterval(updateStatus, Number(STATUS_UPDATE_INTERVAL) * 1000);
     </script>
 </body>
 </html>

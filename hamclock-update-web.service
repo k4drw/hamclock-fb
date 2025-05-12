@@ -9,6 +9,10 @@ ExecStart=/usr/local/sbin/update_server.py
 User=root
 Restart=always
 RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

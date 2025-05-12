@@ -10,6 +10,10 @@ User=root
 TimeoutStartSec=1800
 StandardOutput=journal
 StandardError=journal
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Install]
 WantedBy=multi-user.target
