@@ -255,15 +255,6 @@ if [ "$HCUPDATE" -eq 1 ]; then
         RESOLUTION="hamclock-fb0-800x480"
     fi
 
-    # Set framebuffer depth based on actual hardware
-    if [ "$FB_DEPTH" -eq 32 ]; then
-        log info "Configuring for 32-bit framebuffer"
-        sed -i -re 's/(#define _16BIT_FB)/\/\/\1/' ArduinoLib/Adafruit_RA8875.h
-    fi
-
-    # Don't show the wifi setup on FB0
-    sed -i '/#if defined (_USE_FB0)/,/#endif/c\#define _WIFI_NEVER' setup.cpp
-
     # Make hamclock with detected resolution
     log info "Building with resolution: $RESOLUTION"
 
@@ -272,7 +263,24 @@ if [ "$HCUPDATE" -eq 1 ]; then
     MAKE_JOBS=$((NUM_CORES > 1 ? NUM_CORES - 1 : 1))
     log info "Using $MAKE_JOBS make jobs on $NUM_CORES cores"
 
-    make -j"$MAKE_JOBS" "$RESOLUTION"
+    # Check version for build flags support
+    VER=$(grep hc_version version.cpp | sed 's/.*"\([0-9]*\.[0-9]*\)".*$/\1/')
+    if [ "$(echo "$VER >= 4.18" | bc -l)" -eq 1 ]; then
+        log info "Using build flags for version $VER"
+        make -j"$MAKE_JOBS" FB_DEPTH="$FB_DEPTH" WIFI_NEVER=1 "$RESOLUTION"
+    else
+        log info "Using source modifications for version $VER"
+        # Set framebuffer depth based on actual hardware
+        if [ "$FB_DEPTH" -eq 32 ]; then
+            log info "Configuring for 32-bit framebuffer"
+            sed -i -re 's/(#define +_16BIT_FB)/\/\/\1/' ArduinoLib/Adafruit_RA8875.h
+        fi
+
+        # Don't show the wifi setup on FB0
+        sed -i '/#if defined (_USE_FB0)/,/^#endif/c\#define _WIFI_NEVER' setup.cpp
+
+        make -j"$MAKE_JOBS" "$RESOLUTION"
+    fi
     make install
 
     # Remove the extracted files
