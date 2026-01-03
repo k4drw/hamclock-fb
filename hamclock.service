@@ -7,7 +7,7 @@ Description=Hamclock
 Type=simple
 EnvironmentFile=/etc/default/hamclock
 # User is set directly in ExecStart using sudo
-ExecStart=/bin/bash -c 'sudo -u $HAMCLOCK_USER /usr/bin/env hamclock -k -t 50 -f on -o'
+ExecStart=/bin/bash -c 'sudo -u $HAMCLOCK_USER $HAMCLOCK_BASE_DIR/bin/hamclock -k -t 50 -f on -o'
 Restart=always
 RestartSec=3
 TimeoutStartSec=30

@@ -5,7 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/sbin/update_server.py
+EnvironmentFile=/etc/default/hamclock
+ExecStart=/bin/bash -c '$HAMCLOCK_BASE_DIR/sbin/update_server.py'
 User=root
 Restart=always
 RestartSec=10

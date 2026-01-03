@@ -37,6 +37,7 @@ def load_config() -> Dict[str, str]:
         "HAMCLOCK_UPDATE_PORT": "8088",
         "HAMCLOCK_BRANCH": "master",
         "HAMCLOCK_STATUS_INTERVAL": "30",  # seconds
+        "HAMCLOCK_BASE_DIR": "/usr/local",
     }
 
     try:
@@ -59,8 +60,9 @@ def load_config() -> Dict[str, str]:
 # Load configuration
 CONFIG = load_config()
 PORT = int(os.getenv("HAMCLOCK_UPDATE_PORT", CONFIG["HAMCLOCK_UPDATE_PORT"]))
+BASE_DIR = os.getenv("HAMCLOCK_BASE_DIR", CONFIG["HAMCLOCK_BASE_DIR"])
 UPDATE_LOG = "/var/log/hamclock-update.log"
-HTML_PATH = "/usr/local/sbin/update.html"
+HTML_PATH = os.path.join(BASE_DIR, "sbin", "update.html")
 STATUS_UPDATE_INTERVAL = int(
     os.getenv("HAMCLOCK_STATUS_INTERVAL", CONFIG["HAMCLOCK_STATUS_INTERVAL"])
 )  # seconds
@@ -187,7 +189,7 @@ def run_update() -> Union[bool, str]:
         Union[bool, str]: True if update started successfully, error message otherwise.
     """
     try:
-        update_script = "/usr/local/sbin/hamclock-update"
+        update_script = os.path.join(BASE_DIR, "sbin", "hamclock-update")
         if not os.path.exists(update_script):
             return "Update script not found"
 
@@ -278,7 +280,7 @@ class UpdateHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", "image/png")
         self.end_headers()
-        favicon_path = "/usr/local/sbin/favicon.png"
+        favicon_path = os.path.join(BASE_DIR, "sbin", "favicon.png")
         if os.path.exists(favicon_path):
             with open(favicon_path, "rb") as f:
                 self.wfile.write(f.read())
@@ -293,7 +295,7 @@ class UpdateHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
         try:
-            update_script = "/usr/local/sbin/hamclock-update"
+            update_script = os.path.join(BASE_DIR, "sbin", "hamclock-update")
             if not os.path.exists(update_script):
                 self.wfile.write(b"data: Error: Update script not found\n\n")
                 return

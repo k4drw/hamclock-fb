@@ -12,6 +12,12 @@ fi
 # Set default branch if not specified
 HAMCLOCK_BRANCH=${HAMCLOCK_BRANCH:-master}
 
+# Determine base directory
+HAMCLOCK_BASE_DIR=/usr/local
+if [ -d /usr/local/bin/.git ] || [ -d /usr/local/sbin/.git ]; then
+    HAMCLOCK_BASE_DIR=/usr
+fi
+
 # Install required packages
 echo "Installing required packages..."
 apt update > /dev/null 2>&1
@@ -35,13 +41,13 @@ fi
 
 # Install update script
 echo "Installing hamclock-update script..."
-install -m 755 "$TEMP_DIR/hamclock-update.sh" /usr/local/sbin/hamclock-update
+install -m 755 "$TEMP_DIR/hamclock-update.sh" $HAMCLOCK_BASE_DIR/sbin/hamclock-update
 
 # Install web interface
 echo "Installing web interface..."
-install -m 755 "$TEMP_DIR/update_server.py" /usr/local/sbin/update_server.py
-install -m 644 "$TEMP_DIR/update.html" /usr/local/sbin/update.html
-install -m 644 "$TEMP_DIR/favicon.png" /usr/local/sbin/favicon.png || true # Optional favicon
+install -m 755 "$TEMP_DIR/update_server.py" $HAMCLOCK_BASE_DIR/sbin/update_server.py
+install -m 644 "$TEMP_DIR/update.html" $HAMCLOCK_BASE_DIR/sbin/update.html
+install -m 644 "$TEMP_DIR/favicon.png" $HAMCLOCK_BASE_DIR/sbin/favicon.png || true # Optional favicon
 install -m 644 "$TEMP_DIR/hamclock-update-web.service" /etc/systemd/system/hamclock-update-web.service
 
 # Install service files
@@ -76,6 +82,7 @@ fi
 cat > /etc/default/hamclock << EOF
 HAMCLOCK_USER=$DEFAULT_USER
 HAMCLOCK_BRANCH=$HAMCLOCK_BRANCH
+HAMCLOCK_BASE_DIR=$HAMCLOCK_BASE_DIR
 HAMCLOCK_UPDATE_PORT=8088
 HAMCLOCK_STATUS_INTERVAL=5
 HAMCLOCK_AUTO_UPDATE=0
@@ -83,7 +90,7 @@ EOF
 
 # Run the update script once to download and install hamclock
 echo "Running initial update to download and install hamclock..."
-if ! /usr/local/sbin/hamclock-update; then
+if ! $HAMCLOCK_BASE_DIR/sbin/hamclock-update; then
     echo "Initial update failed. This is normal if HamClock is not yet installed."
     echo "The update will be attempted again during the scheduled update time."
 fi

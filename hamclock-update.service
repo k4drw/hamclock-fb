@@ -5,7 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/sbin/hamclock-update
+EnvironmentFile=/etc/default/hamclock
+ExecStart=/bin/bash -c '$HAMCLOCK_BASE_DIR/sbin/hamclock-update'
 User=root
 TimeoutStartSec=1800
 StandardOutput=journal
