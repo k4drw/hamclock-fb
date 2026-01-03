@@ -96,32 +96,34 @@ cleanup() {
 }
 trap 'cleanup' EXIT
 
+# Load branch from config
+if [ -f /etc/default/hamclock ]; then
+    # shellcheck source=/dev/null
+    . /etc/default/hamclock
+fi
+HAMCLOCK_BRANCH=${HAMCLOCK_BRANCH:-master}
+HAMCLOCK_AUTO_UPDATE=${HAMCLOCK_AUTO_UPDATE:-0}
+HAMCLOCK_AUTO_REBOOT=${HAMCLOCK_AUTO_REBOOT:-1}
+
+log info "Checking for wrapper script updates..."
+
+# Ensure git is available
+if ! command -v git > /dev/null 2>&1; then
+    log info "git not found, installing..."
+    apt-get update > /dev/null 2>&1
+    apt-get install -y git > /dev/null 2>&1
+    if ! command -v git > /dev/null 2>&1; then
+        log err "Failed to install git"
+        exit 1
+    fi
+    log info "git installed successfully"
+fi
+
 # Check for updates to the wrapper scripts
 if [ "$TEST_MODE" -eq 0 ]; then
     REPO_URL="https://github.com/k4drw/hamclock-fb"
     INSTALL_DIR="/usr/local"
     REPO_DIR="/var/cache/hamclock/repo"
-
-    # Load branch from config
-    if [ -f /etc/default/hamclock ]; then
-        # shellcheck source=/dev/null
-        . /etc/default/hamclock
-    fi
-    HAMCLOCK_BRANCH=${HAMCLOCK_BRANCH:-master}
-
-    log info "Checking for wrapper script updates..."
-
-    # Ensure git is available
-    if ! command -v git > /dev/null 2>&1; then
-        log info "git not found, installing..."
-        apt-get update > /dev/null 2>&1
-        apt-get install -y git > /dev/null 2>&1
-        if ! command -v git > /dev/null 2>&1; then
-            log err "Failed to install git"
-            exit 1
-        fi
-        log info "git installed successfully"
-    fi
 
     # Clone or update repo
     if [ ! -d "$REPO_DIR" ]; then
@@ -208,27 +210,32 @@ cd /var/cache/hamclock || exit 1
 # Initialize hamclock update flag
 HCUPDATE=0
 
-if [ ! -f /var/cache/hamclock/ESPHamClock.tgz ]; then
-    touch --date="$(date -d 'last year' +'%Y-%m-%d %H:%M:%S')" /var/cache/hamclock/ESPHamClock.tgz
-fi
-
-# Save MD5 to /tmp/md5
-md5sum ESPHamClock.tgz > /tmp/md5
-
-# Download only if newer
-curl --output ESPHamClock.tgz -Rs -z ESPHamClock.tgz https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.tgz
-
-# Check if the MD5 matches
-if [ "$FORCE_UPDATE" -eq 1 ]; then
-    log info "Force update requested"
-    HCUPDATE=1
-elif md5sum --quiet -c /tmp/md5; then
-    log info "No update to HamClock"
-    HCUPDATE=0
+# Skip HamClock update if auto-update is disabled
+if [ "$HAMCLOCK_AUTO_UPDATE" -eq 0 ]; then
+    log info "HamClock auto-update is disabled, skipping update check"
 else
-    HCUPDATE=1
+    if [ ! -f /var/cache/hamclock/ESPHamClock.tgz ]; then
+        touch --date="$(date -d 'last year' +'%Y-%m-%d %H:%M:%S')" /var/cache/hamclock/ESPHamClock.tgz
+    fi
+
+    # Save MD5 to /tmp/md5
+    md5sum ESPHamClock.tgz > /tmp/md5
+
+    # Download only if newer
+    curl --output ESPHamClock.tgz -Rs -z ESPHamClock.tgz https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.tgz
+
+    # Check if the MD5 matches
+    if [ "$FORCE_UPDATE" -eq 1 ]; then
+        log info "Force update requested"
+        HCUPDATE=1
+    elif md5sum --quiet -c /tmp/md5; then
+        log info "No update to HamClock"
+        HCUPDATE=0
+    else
+        HCUPDATE=1
+    fi
+    rm /tmp/md5
 fi
-rm /tmp/md5
 
 # Update HamClock if needed or forced
 if [ "$HCUPDATE" -eq 1 ]; then
@@ -281,7 +288,12 @@ if [ "$HCUPDATE" -eq 1 ]; then
 
         make -j"$MAKE_JOBS" "$RESOLUTION"
     fi
-    make install
+    if [ -d /usr/local/bin/.git ]; then
+        log info "/usr/local/bin is a git repo, installing hamclock to /usr/bin/"
+        install -m 4755 $RESOLUTION /usr/bin/hamclock
+    else
+        make install
+    fi
 
     # Remove the extracted files
     cd /var/cache/hamclock
@@ -312,8 +324,15 @@ if [ "$UPDATES" -gt 0 ]; then
         apt-get install --only-upgrade -y --allow-change-held-packages tzdata > /dev/null 2>&1
     fi
 
-    log info "System update complete, rebooting"
-    shutdown -r now
+    log info "System update complete"
+    if [ "$HAMCLOCK_AUTO_REBOOT" -eq 1 ]; then
+        log info "Rebooting system..."
+        shutdown -r now
+    else
+        log info "Auto-reboot disabled, please reboot manually if needed"
+        # Restart service if we aren't rebooting, to ensure things are running
+        systemctl restart hamclock.service
+    fi
 elif [ "$HCUPDATE" -eq 1 ]; then
     log info "Restarting hamclock"
     systemctl restart hamclock.service

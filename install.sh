@@ -24,27 +24,34 @@ if [ -e "$LOCKFILE" ]; then
     rm -rf "$LOCKFILE"
 fi
 
-# Define repository URL
-REPO_URL="https://github.com/k4drw/hamclock-fb/raw/refs/heads/$HAMCLOCK_BRANCH"
-
-# Create cache directory
-mkdir -p /var/cache/hamclock
-chown root:root /var/cache/hamclock
-chmod 755 /var/cache/hamclock
+# Clone repository to temporary location
+TEMP_DIR=$(mktemp -d)
+echo "Cloning repository..."
+if ! git clone -b "$HAMCLOCK_BRANCH" "https://github.com/k4drw/hamclock-fb.git" "$TEMP_DIR"; then
+    echo "Failed to clone repository"
+    rm -rf "$TEMP_DIR"
+    exit 1
+fi
 
 # Install update script
-echo "Downloading hamclock-update script..."
-wget -qO /usr/local/sbin/hamclock-update "${REPO_URL}/hamclock-update.sh"
-
-# Make update script executable
-chmod +x /usr/local/sbin/hamclock-update
+echo "Installing hamclock-update script..."
+install -m 755 "$TEMP_DIR/hamclock-update.sh" /usr/local/sbin/hamclock-update
 
 # Install web interface
 echo "Installing web interface..."
-wget -qO /usr/local/sbin/update_server.py "${REPO_URL}/update_server.py"
-wget -qO /usr/local/sbin/update.html "${REPO_URL}/update.html"
-wget -qO /etc/systemd/system/hamclock-update-web.service "${REPO_URL}/hamclock-update-web.service"
-chmod +x /usr/local/sbin/update_server.py
+install -m 755 "$TEMP_DIR/update_server.py" /usr/local/sbin/update_server.py
+install -m 644 "$TEMP_DIR/update.html" /usr/local/sbin/update.html
+install -m 644 "$TEMP_DIR/favicon.png" /usr/local/sbin/favicon.png || true # Optional favicon
+install -m 644 "$TEMP_DIR/hamclock-update-web.service" /etc/systemd/system/hamclock-update-web.service
+
+# Install service files
+echo "Installing service files..."
+install -m 644 "$TEMP_DIR/hamclock.service" /etc/systemd/system/hamclock.service
+install -m 644 "$TEMP_DIR/hamclock-update.service" /etc/systemd/system/hamclock-update.service
+install -m 644 "$TEMP_DIR/hamclock-update.timer" /etc/systemd/system/hamclock-update.timer
+
+# Clean up
+rm -rf "$TEMP_DIR"
 
 # Detect default user (pi, orangepi, etc.)
 DEFAULT_USER=""
@@ -71,13 +78,8 @@ HAMCLOCK_USER=$DEFAULT_USER
 HAMCLOCK_BRANCH=$HAMCLOCK_BRANCH
 HAMCLOCK_UPDATE_PORT=8088
 HAMCLOCK_STATUS_INTERVAL=5
+HAMCLOCK_AUTO_UPDATE=0
 EOF
-
-# Download and install service files
-echo "Downloading service files..."
-wget -qO /etc/systemd/system/hamclock.service "${REPO_URL}/hamclock.service"
-wget -qO /etc/systemd/system/hamclock-update.service "${REPO_URL}/hamclock-update.service"
-wget -qO /etc/systemd/system/hamclock-update.timer "${REPO_URL}/hamclock-update.timer"
 
 # Run the update script once to download and install hamclock
 echo "Running initial update to download and install hamclock..."
