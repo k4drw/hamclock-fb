@@ -104,6 +104,14 @@ fi
 HAMCLOCK_BRANCH=${HAMCLOCK_BRANCH:-master}
 HAMCLOCK_AUTO_UPDATE=${HAMCLOCK_AUTO_UPDATE:-0}
 HAMCLOCK_AUTO_REBOOT=${HAMCLOCK_AUTO_REBOOT:-1}
+HAMCLOCK_BASE_DIR=${HAMCLOCK_BASE_DIR:-/usr/local}
+
+if [ -d /usr/local/bin/.git ] || [ -d /usr/local/sbin/.git ]; then
+    HAMCLOCK_BASE_DIR=/usr
+    if [ "$HAMCLOCK_BASE_DIR" != "/usr" ]; then
+        echo "HAMCLOCK_BASE_DIR=$HAMCLOCK_BASE_DIR" >> /etc/default/hamclock
+    fi
+fi
 
 log info "Checking for wrapper script updates..."
 
@@ -122,7 +130,6 @@ fi
 # Check for updates to the wrapper scripts
 if [ "$TEST_MODE" -eq 0 ]; then
     REPO_URL="https://github.com/k4drw/hamclock-fb"
-    INSTALL_DIR="/usr/local"
     REPO_DIR="/var/cache/hamclock/repo"
 
     # Clone or update repo
@@ -145,7 +152,7 @@ if [ "$TEST_MODE" -eq 0 ]; then
     UPDATE_NEEDED=false
 
     # Check hamclock-update.sh
-    if [ -f "$REPO_DIR/hamclock-update.sh" ] && ! cmp -s "$REPO_DIR/hamclock-update.sh" "$INSTALL_DIR/sbin/hamclock-update"; then
+    if [ -f "$REPO_DIR/hamclock-update.sh" ] && ! cmp -s "$REPO_DIR/hamclock-update.sh" "$HAMCLOCK_BASE_DIR/sbin/hamclock-update"; then
         UPDATE_NEEDED=true
         log info "Update script has changed"
     fi
@@ -160,7 +167,7 @@ if [ "$TEST_MODE" -eq 0 ]; then
 
     # Check web interface files
     for web_file in update_server.py update.html; do
-        if [ -f "$REPO_DIR/$web_file" ] && ! cmp -s "$REPO_DIR/$web_file" "/usr/local/sbin/$web_file"; then
+        if [ -f "$REPO_DIR/$web_file" ] && ! cmp -s "$REPO_DIR/$web_file" "$HAMCLOCK_BASE_DIR/sbin/$web_file"; then
             UPDATE_NEEDED=true
             log info "Web interface file $web_file has changed"
         fi
@@ -169,13 +176,13 @@ if [ "$TEST_MODE" -eq 0 ]; then
     # Update files if needed
     if $UPDATE_NEEDED; then
         # Update the scripts
-        install -m 755 "$REPO_DIR/hamclock-update.sh" "$INSTALL_DIR/sbin/hamclock-update"
+        install -m 755 "$REPO_DIR/hamclock-update.sh" "$HAMCLOCK_BASE_DIR/sbin/hamclock-update"
         install -m 644 "$REPO_DIR/hamclock.service" /etc/systemd/system/
         install -m 644 "$REPO_DIR/hamclock-update.service" /etc/systemd/system/
         install -m 644 "$REPO_DIR/hamclock-update.timer" /etc/systemd/system/
         install -m 644 "$REPO_DIR/hamclock-update-web.service" /etc/systemd/system/
-        install -m 755 "$REPO_DIR/update_server.py" /usr/local/sbin/
-        install -m 644 "$REPO_DIR/update.html" /usr/local/sbin/
+        install -m 755 "$REPO_DIR/update_server.py" "$HAMCLOCK_BASE_DIR/sbin/"
+        install -m 644 "$REPO_DIR/update.html" "$HAMCLOCK_BASE_DIR/sbin/"
         systemctl daemon-reload
         log info "Wrapper scripts updated"
 
@@ -190,7 +197,7 @@ if [ "$TEST_MODE" -eq 0 ]; then
 
         # Exit and let the new version take over
         log info "Launching new version with --updated"
-        "$INSTALL_DIR/sbin/hamclock-update" --updated &
+        "$HAMCLOCK_BASE_DIR/sbin/hamclock-update" --updated &
         exit 0
     else
         log info "No updates to wrapper scripts needed"
@@ -288,12 +295,8 @@ if [ "$HCUPDATE" -eq 1 ]; then
 
         make -j"$MAKE_JOBS" "$RESOLUTION"
     fi
-    if [ -d /usr/local/bin/.git ]; then
-        log info "/usr/local/bin is a git repo, installing hamclock to /usr/bin/"
-        install -m 4755 $RESOLUTION /usr/bin/hamclock
-    else
-        make install
-    fi
+
+    install -m 4755 $RESOLUTION "$HAMCLOCK_BASE_DIR/bin/hamclock"
 
     # Remove the extracted files
     cd /var/cache/hamclock
