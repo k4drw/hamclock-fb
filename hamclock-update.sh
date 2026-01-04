@@ -106,11 +106,14 @@ HAMCLOCK_AUTO_UPDATE=${HAMCLOCK_AUTO_UPDATE:-0}
 HAMCLOCK_AUTO_REBOOT=${HAMCLOCK_AUTO_REBOOT:-1}
 HAMCLOCK_BASE_DIR=${HAMCLOCK_BASE_DIR:-/usr/local}
 
+# Check if we should use /usr instead of /usr/local based on repo existence
 if [ -d /usr/local/bin/.git ] || [ -d /usr/local/sbin/.git ]; then
     HAMCLOCK_BASE_DIR=/usr
-    if [ "$HAMCLOCK_BASE_DIR" != "/usr" ]; then
-        echo "HAMCLOCK_BASE_DIR=$HAMCLOCK_BASE_DIR" >> /etc/default/hamclock
-    fi
+fi
+
+# Ensure HAMCLOCK_BASE_DIR is in the config file so service files work
+if ! grep -q "^HAMCLOCK_BASE_DIR=" /etc/default/hamclock 2> /dev/null; then
+    echo "HAMCLOCK_BASE_DIR=$HAMCLOCK_BASE_DIR" >> /etc/default/hamclock
 fi
 
 log info "Checking for wrapper script updates..."
