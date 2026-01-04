@@ -194,6 +194,12 @@ if [ "$TEST_MODE" -eq 0 ]; then
         systemctl enable hamclock-update.timer
         systemctl enable hamclock-update-web.service
 
+        # Restart services since files changed
+        log info "Restarting updated services"
+        systemctl restart hamclock.service
+        systemctl restart hamclock-update.timer
+        systemctl restart hamclock-update-web.service
+
         # Release the lock before launching new version
         log info "Releasing lock before launching new version"
         flock -u 200
